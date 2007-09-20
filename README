@@ -1,0 +1,27 @@
+NAME
+    File::Stat::Moose - Status info for a file - Moose-based
+
+SYNOPSIS
+      use IO::File;
+      use File::Stat::Moose;
+      $fh = new IO::File '/etc/passwd';
+      $st = new File::Stat::Moose file=>$fh;
+      print "Size: ", $st->size, "\n";    # named field
+      print "Blocks: ". $st->[12], "\n";  # numbered field
+
+DESCRIPTION
+    This class provides methods that returns status info for a file. It is
+    the OO-style version of stat/lstat functions. It also throws an
+    exception immediately after error is occured.
+
+AUTHOR
+    Piotr Roszatycki <dexter@debian.org>
+
+COPYRIGHT
+    Copyright 2007 by Piotr Roszatycki <dexter@debian.org>.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
+    See http://www.perl.com/perl/misc/Artistic.html
+

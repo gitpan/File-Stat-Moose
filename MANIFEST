@@ -1,0 +1,18 @@
+Build.PL
+Changes
+eg/stat_passwd.pl
+lib/File/Stat/Moose.pm
+MANIFEST			This list of files
+t/all_tests.t
+t/benchmark.pl
+t/cover.sh
+t/pod.t
+t/pod_coverage.t
+t/profile.pl
+t/test.sh
+t/tlib/AllTests.pm
+t/tlib/File/Stat/MooseFunctionTest.pm
+t/tlib/File/Stat/MooseTest.pm
+META.yml
+README
+Makefile.PL
