@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = '0.01';
+our $VERSION = 0.01_01;
 
 =head1 NAME
 
@@ -73,7 +73,7 @@ use overload '@{}' => \&_deref_array,
              fallback => 1;
 
 
-use Exporter 'import';
+use Exporter (); *import = \&Exporter::import;
 our @EXPORT_OK = qw< stat lstat >;
 our %EXPORT_TAGS = (all => [ @EXPORT_OK ]);
 

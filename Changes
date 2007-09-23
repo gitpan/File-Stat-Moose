@@ -1,4 +1,11 @@
 ------------------------------------------------------------------------
+0.01_01 | Piotr Roszatycki <dexter@debian.org> | 2007-09-23
+
+Fixes:
+
+* Fix incompatibility with Perl 5.006 (Exporter).
+
+------------------------------------------------------------------------
 0.01 | Piotr Roszatycki <dexter@debian.org> | 2007-09-20
 
 * First CPAN release.
