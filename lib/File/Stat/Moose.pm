@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = 0.01_01;
+our $VERSION = 0.01_02;
 
 =head1 NAME
 
@@ -111,7 +111,7 @@ sub stat (;*) {
         if @_ > 1;
 
     my %stat;
-    @{%$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
+    @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::stat $file
         or throw Exception::IO
                  message => 'Cannot stat';
@@ -144,7 +144,7 @@ sub lstat (;*) {
 
     my %stat;
     no warnings 'io';  # lstat() on filehandle
-    @{%$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
+    @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::lstat $file
         or throw Exception::IO
                  message => 'Cannot lstat';
@@ -156,7 +156,7 @@ sub lstat (;*) {
 # Array dereference
 sub _deref_array {
     my $self = shift;
-    return [ @{%$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >} ];
+    return [ @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >} ];
 }
 
 

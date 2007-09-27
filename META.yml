@@ -1,6 +1,6 @@
 ---
 name: File-Stat-Moose
-version: 0.0101
+version: 0.0102
 author:
   - 'Piotr Roszatycki <dexter@debian.org>'
 abstract: 'Status info for a file - Moose-based'
@@ -17,7 +17,7 @@ build_requires:
 provides:
   File::Stat::Moose:
     file: lib/File/Stat/Moose.pm
-    version: 0.0101
+    version: 0.0102
 generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
