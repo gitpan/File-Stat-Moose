@@ -9,8 +9,7 @@ t/cover.sh
 t/pod.t
 t/pod_coverage.t
 t/profile.pl
-t/test.sh
-t/tlib/AllTests.pm
+t/test.pl
 t/tlib/File/Stat/MooseFunctionTest.pm
 t/tlib/File/Stat/MooseTest.pm
 META.yml

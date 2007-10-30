@@ -1,5 +1,8 @@
 package File::Stat::MooseTest;
 
+use strict;
+use warnings;
+
 use base 'Test::Unit::TestCase';
 
 use File::Stat::Moose;
@@ -8,10 +11,12 @@ use Exception::Base 'try', 'catch';
 use File::Spec;
 use File::Temp 'tmpnam';
 
+our ($file, $symlink, $notexistant);
+
 sub set_up {
-    our $file = __FILE__;
-    our $symlink = tmpnam();
-    our $notexistant = '/MooseTestNotExistant';
+    $file = __FILE__;
+    $symlink = tmpnam();
+    $notexistant = '/MooseTestNotExistant';
 
     eval { symlink File::Spec->rel2abs($file), $symlink };
     $symlink = undef if $@;
@@ -57,25 +62,25 @@ sub test_File_Stat_Moose_new_exception_constraint {
         my $obj = File::Stat::Moose->new(file => undef);
     };
     catch my $e1;
-    $self->assert($e1->with(qr/does not pass the type constraint/));
+    $self->assert_matches(qr/does not pass the type constraint/, $e1->eval_error);
 
     try eval {
         my $obj = File::Stat::Moose->new(file => [1, 2, 3]);
     };
     catch my $e2;
-    $self->assert($e2->with(qr/does not pass the type constraint/));
+    $self->assert_matches(qr/does not pass the type constraint/, $e2->eval_error);
 
     try eval {
         my $obj = File::Stat::Moose->new(file => (bless {} => 'My::Class'));
     };
     catch my $e3;
-    $self->assert($e3->with(qr/does not pass the type constraint/));
+    $self->assert_matches(qr/does not pass the type constraint/, $e3->eval_error);
 
     try eval {
         my $obj = File::Stat::Moose->new(file => $file, follow => \1);
     };
     catch my $e4;
-    $self->assert($e4->with(qr/does not pass the type constraint/));
+    $self->assert_matches(qr/does not pass the type constraint/, $e4->eval_error);
 }
 
 sub test_File_Stat_Moose_new_exception_io {

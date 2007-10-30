@@ -8,10 +8,10 @@ WriteMakefile
           'EXE_FILES' => [],
           'VERSION_FROM' => 'lib/File/Stat/Moose.pm',
           'PREREQ_PM' => {
-                           'Test::Unit::Lite' => 0,
+                           'Test::Unit::Lite' => '0.07',
                            'Moose' => 0,
-                           'Exception::System' => 0,
-                           'Exception::Base' => 0
+                           'Exception::System' => '0.07',
+                           'Exception::Base' => '0.12'
                          }
         )
 ;

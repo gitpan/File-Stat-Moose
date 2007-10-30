@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = 0.01_02;
+our $VERSION = 0.01_03;
 
 =head1 NAME
 
@@ -64,8 +64,7 @@ has [ qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks 
 
 
 use Exception::Base
-    'Exception::Runtime'  => { isa => 'Exception::Base' },
-    'Exception::BadValue' => { isa => 'Exception::Runtime' },
+    'Exception::Argument' => { isa => 'Exception::Base' },
     'Exception::IO'       => { isa => 'Exception::System' };
 
 
@@ -73,7 +72,8 @@ use overload '@{}' => \&_deref_array,
              fallback => 1;
 
 
-use Exporter (); *import = \&Exporter::import;
+use Exporter ();
+*import = \&Exporter::import;
 our @EXPORT_OK = qw< stat lstat >;
 our %EXPORT_TAGS = (all => [ @EXPORT_OK ]);
 
@@ -96,8 +96,7 @@ sub stat (;*) {
         return wantarray ? @{ $st } : $st;
     }
 
-    my $self = shift;
-    my $file = shift;
+    my ($self, $file) = @_;
 
     $file = $_ if not defined $file;
 
@@ -106,14 +105,16 @@ sub stat (;*) {
         return $self->new(file => $file, follow => 1);
     }
 
-    throw Exception::BadValue
+    throw Exception::Argument
+          ignore_package => __PACKAGE__,
           message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
-        if @_ > 1;
+        if @_ > 2;
 
     my %stat;
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::stat $file
         or throw Exception::IO
+                 ignore_package => __PACKAGE__,
                  message => 'Cannot stat';
 
     return $self;
@@ -128,8 +129,7 @@ sub lstat (;*) {
         return wantarray ? @{ $st } : $st;
     }
 
-    my $self = shift;
-    my $file = shift;
+    my ($self, $file) = @_;
 
     $file = $_ if not defined $file;
 
@@ -138,15 +138,17 @@ sub lstat (;*) {
         return $self->new(file => $file);
     }
 
-    throw Exception::BadValue
+    throw Exception::Argument
+          ignore_package => __PACKAGE__,
           message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
-        if @_ > 1;
+        if @_ > 2;
 
     my %stat;
     no warnings 'io';  # lstat() on filehandle
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::lstat $file
         or throw Exception::IO
+                 ignore_package => __PACKAGE__,
                  message => 'Cannot lstat';
 
     return $self;
@@ -377,8 +379,8 @@ as bareword.  You have to use it as a glob reference B<\*_>.
 
 =head1 PERFORMANCE
 
-The L<File::Stat::Moose> module is 4 times slower than L<File::stat> module and 28 times
-slower than B<CORE::stat> function.  The function interface is 4 times slower than
+The L<File::Stat::Moose> module is 2 times slower than L<File::stat> module and 12 times
+slower than B<CORE::stat> function.  The function interface is 2 times slower than
 OO interface.
 
 =head1 SEE ALSO
@@ -393,7 +395,7 @@ Piotr Roszatycki E<lt>dexter@debian.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2007 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
+Copyright (C) 2007 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

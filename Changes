@@ -1,5 +1,15 @@
 ------------------------------------------------------------------------
-0.01_02 | Piotr Roszatycki <dexter@debian.org> | 2007-09-27
+0.0103 | Piotr Roszatycki <dexter@debian.org> | 2007-10-30
+
+Changes:
+
+* Throw Exception::Argument if bad argument for method is used.
+* Ignore this package for thrown exceptions.
+* Requires Exception::Base >= 0.12, Exception::System >= 0.07.
+* Build requires Test::Unit::Lite >= 0.07.
+
+------------------------------------------------------------------------
+0.0102 | Piotr Roszatycki <dexter@debian.org> | 2007-09-27
 
 Fixes:
 
@@ -7,7 +17,7 @@ Fixes:
   @{%$self}{qw<...>}).
 
 ------------------------------------------------------------------------
-0.01_01 | Piotr Roszatycki <dexter@debian.org> | 2007-09-23
+0.0101 | Piotr Roszatycki <dexter@debian.org> | 2007-09-23
 
 Fixes:
 

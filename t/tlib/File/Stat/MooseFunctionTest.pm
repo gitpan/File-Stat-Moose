@@ -1,5 +1,8 @@
 package File::Stat::MooseFunctionTest;
 
+use strict;
+use warnings;
+
 use base 'Test::Unit::TestCase';
 
 use File::Stat::Moose ':all';
@@ -8,23 +11,24 @@ use Exception::Base 'try', 'catch';
 use File::Spec;
 use File::Temp 'tmpnam';
 
+{
+    package File::Stat::MooseFunctionTest::Test1;
 
-package File::Stat::MooseFunctionTest::Test1;
+    use File::Stat::Moose 'lstat';
+}
 
-use File::Stat::Moose 'lstat';
+{
+    package File::Stat::MooseFunctionTest::Test2;
 
+    use File::Stat::Moose;
+}
 
-package File::Stat::MooseFunctionTest::Test2;
-
-use File::Stat::Moose;
-
-
-package File::Stat::MooseFunctionTest;
+our ($file, $symlink, $notexistant);
 
 sub set_up {
-    our $file = __FILE__;
-    our $symlink = tmpnam();
-    our $notexistant = '/MooseTestNotExistant';
+    $file = __FILE__;
+    $symlink = tmpnam();
+    $notexistant = '/MooseTestNotExistant';
 
     eval { symlink File::Spec->rel2abs($file), $symlink };
     $symlink = undef if $@;

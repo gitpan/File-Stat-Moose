@@ -39,12 +39,13 @@ sub test {
 
 package main;
 
-use Benchmark;
+use Benchmark ':all';
 
-timethese(-1, {
+my $result = timethese(-1, {
     '1_CoreStat'               => sub { My::CoreStat::test; },
     '2_FileStat'               => sub { My::FileStat::test; },
     '3_FileStatMoose'          => sub { My::FileStatMoose::test; },
     '4_FileStatMooseFunc'      => sub { My::FileStatMooseFunc::test; },
 });
 
+cmpthese($result);
