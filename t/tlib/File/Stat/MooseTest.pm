@@ -42,6 +42,8 @@ sub test_File_Stat_Moose_new {
 }
 
 sub test_File_Stat_Moose_new_symlink {
+    return unless $symlink;
+
     my $self = shift;
     my $obj1 = File::Stat::Moose->new(file => $symlink);
     $self->assert_not_null($obj1);

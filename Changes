@@ -1,4 +1,11 @@
 ------------------------------------------------------------------------
+0.0104 | Piotr Roszatycki <dexter@debian.org> | 2007-11-05
+
+Fixes:
+
+* Skip some test units if symlink call is not available.
+
+------------------------------------------------------------------------
 0.0103 | Piotr Roszatycki <dexter@debian.org> | 2007-10-30
 
 Changes:
