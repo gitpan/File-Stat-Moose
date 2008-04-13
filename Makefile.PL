@@ -10,8 +10,8 @@ WriteMakefile
           'PREREQ_PM' => {
                            'Test::Unit::Lite' => '0.07',
                            'Moose' => 0,
-                           'Exception::System' => '0.07',
-                           'Exception::Base' => '0.12'
+                           'Exception::System' => '0.0801',
+                           'Exception::Base' => '0.14'
                          }
         )
 ;

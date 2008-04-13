@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = 0.01_04;
+our $VERSION = 0.01_05;
 
 =head1 NAME
 
@@ -64,6 +64,7 @@ has [ qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks 
 
 
 use Exception::Base
+    '+ignore_package' => __PACKAGE__,
     'Exception::Argument' => { isa => 'Exception::Base' },
     'Exception::IO'       => { isa => 'Exception::System' };
 
@@ -106,7 +107,6 @@ sub stat (;*) {
     }
 
     throw Exception::Argument
-          ignore_package => __PACKAGE__,
           message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
         if @_ > 2;
 
@@ -114,7 +114,6 @@ sub stat (;*) {
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::stat $file
         or throw Exception::IO
-                 ignore_package => __PACKAGE__,
                  message => 'Cannot stat';
 
     return $self;
@@ -139,7 +138,6 @@ sub lstat (;*) {
     }
 
     throw Exception::Argument
-          ignore_package => __PACKAGE__,
           message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
         if @_ > 2;
 
@@ -148,7 +146,6 @@ sub lstat (;*) {
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::lstat $file
         or throw Exception::IO
-                 ignore_package => __PACKAGE__,
                  message => 'Cannot lstat';
 
     return $self;
@@ -395,7 +392,7 @@ Piotr Roszatycki E<lt>dexter@debian.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2007 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
+Copyright (C) 2007, 2008 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

@@ -12,8 +12,8 @@ my $build = Module::Build->new(
     requires => {
         'perl'               => 5.006,
         'Moose'              => 0,
-        'Exception::Base'    => 0.12,
-        'Exception::System'  => 0.07,
+        'Exception::Base'    => 0.14,
+        'Exception::System'  => 0.0801,
     },
     optional => {
     },

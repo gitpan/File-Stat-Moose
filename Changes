@@ -1,4 +1,11 @@
 ------------------------------------------------------------------------
+0.0105 | Piotr Roszatycki <dexter@debian.org> | 2008-04-13
+
+Changes:
+
+* Requires Exception::Base => 0.14, Exception::System => 0.0801.
+
+------------------------------------------------------------------------
 0.0104 | Piotr Roszatycki <dexter@debian.org> | 2007-11-05
 
 Fixes:
