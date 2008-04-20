@@ -4,15 +4,15 @@ NAME
 SYNOPSIS
       use IO::File;
       use File::Stat::Moose;
-      $fh = new IO::File '/etc/passwd';
-      $st = new File::Stat::Moose file=>$fh;
+      $fh = IO::File->new('/etc/passwd');
+      $st = File::Stat::Moose->new(file=>$fh);
       print "Size: ", $st->size, "\n";    # named field
       print "Blocks: ". $st->[12], "\n";  # numbered field
 
 DESCRIPTION
     This class provides methods that returns status info for a file. It is
     the OO-style version of stat/lstat functions. It also throws an
-    exception immediately after error is occured.
+    exception immediately after error is occurred.
 
 AUTHOR
     Piotr Roszatycki <dexter@debian.org>

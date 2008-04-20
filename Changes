@@ -1,4 +1,11 @@
 ------------------------------------------------------------------------
+0.0106 | Piotr Roszatycki <dexter@debian.org> | 2008-04-19
+
+Changes:
+
+* Remove indirect notation from POD and code.
+
+------------------------------------------------------------------------
 0.0105 | Piotr Roszatycki <dexter@debian.org> | 2008-04-13
 
 Changes:

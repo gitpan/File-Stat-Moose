@@ -23,7 +23,7 @@ use lib 'lib', '../lib';
 use File::Stat::Moose;
 our $n = 0;
 sub test {
-    my $size = (new File::Stat::Moose file=>'/etc/passwd')->size;
+    my $size = File::Stat::Moose->new(file=>'/etc/passwd')->size;
     $n++;
 }
 

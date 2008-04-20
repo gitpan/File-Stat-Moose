@@ -5,7 +5,7 @@ use File::Stat::Moose;
 
 
 foreach (1..10000) {
-    my $size = (new File::Stat::Moose file=>'/etc/passwd')->size;
+    my $size = File::Stat::Moose->new(file=>'/etc/passwd')->size;
 }
 
 print "tmon.out data collected. Call dprofpp\n";

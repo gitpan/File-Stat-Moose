@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = 0.01_05;
+our $VERSION = 0.01_06;
 
 =head1 NAME
 
@@ -12,8 +12,8 @@ File::Stat::Moose - Status info for a file - Moose-based
 
   use IO::File;
   use File::Stat::Moose;
-  $fh = new IO::File '/etc/passwd';
-  $st = new File::Stat::Moose file=>$fh;
+  $fh = IO::File->new('/etc/passwd');
+  $st = File::Stat::Moose->new(file=>$fh);
   print "Size: ", $st->size, "\n";    # named field
   print "Blocks: ". $st->[12], "\n";  # numbered field
 
@@ -21,7 +21,9 @@ File::Stat::Moose - Status info for a file - Moose-based
 
 This class provides methods that returns status info for a file.  It is the
 OO-style version of stat/lstat functions.  It also throws an exception
-immediately after error is occured.
+immediately after error is occurred.
+
+=for readme stop
 
 =cut
 
@@ -106,15 +108,14 @@ sub stat (;*) {
         return $self->new(file => $file, follow => 1);
     }
 
-    throw Exception::Argument
-          message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
-        if @_ > 2;
+    Exception::Argument->throw(
+        message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
+    ) if @_ > 2;
 
     my %stat;
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::stat $file
-        or throw Exception::IO
-                 message => 'Cannot stat';
+        or Exception::IO->throw(message => 'Cannot stat');
 
     return $self;
 }
@@ -137,16 +138,15 @@ sub lstat (;*) {
         return $self->new(file => $file);
     }
 
-    throw Exception::Argument
-          message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
-        if @_ > 2;
+    Exception::Argument->throw(
+        message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
+    ) if @_ > 2;
 
     my %stat;
     no warnings 'io';  # lstat() on filehandle
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::lstat $file
-        or throw Exception::IO
-                 message => 'Cannot lstat';
+        or Exception::IO->throw(message => 'Cannot lstat');
 
     return $self;
 }
@@ -159,15 +159,15 @@ sub _deref_array {
 }
 
 
-__PACKAGE__->meta->make_immutable();
+INIT: {
+    __PACKAGE__->meta->make_immutable();
+}
 
 
 1;
 
 
 __END__
-
-=for readme stop
 
 =head1 BASE CLASSES
 
@@ -176,6 +176,35 @@ __END__
 =item *
 
 L<Moose::Base>
+
+=back
+
+=head1 TYPE CONSTRAINTS
+
+=over
+
+=item IO
+
+Represents opened file handle.
+
+=item CacheFileHandle
+
+Represents normal file handle or special cached file handle: underscore
+(B<_>) which is used for B<stat> tests.
+
+=back
+
+=head1 EXCEPTIONS
+
+=over
+
+=item Exception::Argument
+
+Thrown whether a methods is called with wrong arguments.
+
+=item Exception::IO
+
+Thrown whether an IO error is occurred.
 
 =back
 
@@ -278,13 +307,13 @@ If the I<file> is symlink and the I<follow> is true, it will check the file
 that it refers to.  If the I<follow> is false, it will check the symlink
 itself.
 
-  $st = new File::Stat::Moose file=>'/etc/cdrom', follow=>1;
+  $st = File::Stat::Moose->new(file=>'/etc/cdrom', follow=>1);
   print "Device: $st->rdev\n";  # check real device, not symlink itself  
 
 The object is dereferenced in array context to the array reference which
 contains the same values as core B<stat> function output.
 
-  $st = new File::Stat::Moose file=>'/etc/passwd';
+  $st = File::Stat::Moose->new(file=>'/etc/passwd');
   print "Size: $st->size\n";  # object's field
   print "Size: $st->[7]\n";   # array dereference
 
@@ -318,7 +347,7 @@ Calls stat on given I<file> or the file which has beed set with B<new>
 constructor.  If the I<file> is undefined, the <$_> variable is used instead.
 It returns the object reference.
 
-  $st = new File::Stat::Moose;
+  $st = File::Stat::Moose->new;
   print "Size: ", $st->stat('/etc/passwd')->{size}, "\n";
 
 =item $st->lstat([I<file>])
@@ -326,7 +355,7 @@ It returns the object reference.
 It is identical to B<stat>, except that if I<file> is a symbolic link, then
 the link itself is checked, not the file that it refers to.
 
-  $st = new File::Stat::Moose;
+  $st = File::Stat::Moose->new;
   print "Size: ", $st->lstat('/dev/cdrom')->{mode}, "\n";
 
 =back
@@ -376,9 +405,9 @@ as bareword.  You have to use it as a glob reference B<\*_>.
 
 =head1 PERFORMANCE
 
-The L<File::Stat::Moose> module is 2 times slower than L<File::stat> module and 12 times
-slower than B<CORE::stat> function.  The function interface is 2 times slower than
-OO interface.
+The L<File::Stat::Moose> module is 1.7 times slower than L<File::stat>
+module and 10 times slower than B<CORE::stat> function.  The function
+interface is 1.5 times slower than OO interface.
 
 =head1 SEE ALSO
 
