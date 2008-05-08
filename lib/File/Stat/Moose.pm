@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = 0.01_06;
+our $VERSION = 0.02;
 
 =head1 NAME
 
@@ -13,9 +13,9 @@ File::Stat::Moose - Status info for a file - Moose-based
   use IO::File;
   use File::Stat::Moose;
   $fh = IO::File->new('/etc/passwd');
-  $st = File::Stat::Moose->new(file=>$fh);
-  print "Size: ", $st->size, "\n";    # named field
-  print "Blocks: ". $st->[12], "\n";  # numbered field
+  $st = File::Stat::Moose->new( file => $fh );
+  print "Size: ", $st->size, "\n";    # named attribute
+  print "Blocks: ". $st->[12], "\n";  # numbered attribute
 
 =head1 DESCRIPTION
 
@@ -33,8 +33,8 @@ use Moose;
 use Moose::Util::TypeConstraints;
 
 
-subtype 'IO'
-    => as 'Object'
+subtype 'OpenHandle'
+    => as 'Ref'
     => where { defined $_
             && Scalar::Util::reftype($_) eq 'GLOB'
             && Scalar::Util::openhandle($_) }
@@ -54,7 +54,7 @@ subtype 'CacheFileHandle'
 
 has 'file' =>
     is       => 'ro',
-    isa      => 'Str | FileHandle | CacheFileHandle | IO',
+    isa      => 'Str | FileHandle | CacheFileHandle | OpenHandle',
     weak_ref => 1;
 
 has 'follow' =>
@@ -66,12 +66,12 @@ has [ qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks 
 
 
 use Exception::Base
-    '+ignore_package' => __PACKAGE__,
+    '+ignore_package'     => [ __PACKAGE__, qr/^Moose::/, qr/^Class::MOP::/ ],
     'Exception::Argument' => { isa => 'Exception::Base' },
     'Exception::IO'       => { isa => 'Exception::System' };
 
 
-use overload '@{}' => \&_deref_array,
+use overload '@{}' => '__deref_array',
              fallback => 1;
 
 
@@ -95,27 +95,35 @@ sub BUILD {
 sub stat (;*) {
     # called as function
     if (not eval { $_[0]->isa(__PACKAGE__) }) {
-        my $st = __PACKAGE__->new(file => (defined $_[0] ? $_[0] : $_), follow => 1);
+        my $st = __PACKAGE__->new(
+            file => (defined $_[0] ? $_[0] : $_),
+            follow => 1
+        );
         return wantarray ? @{ $st } : $st;
     }
 
-    my ($self, $file) = @_;
+    my $self = shift;
+
+    Exception::Argument->throw(
+        message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
+    ) if @_ > 1;
+
+    my ($file) = @_;
 
     $file = $_ if not defined $file;
 
     # called as static method
     if (not ref $self) {
-        return $self->new(file => $file, follow => 1);
+        return $self->new(
+            file => $file,
+            follow => 1
+        );
     }
-
-    Exception::Argument->throw(
-        message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
-    ) if @_ > 2;
 
     my %stat;
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::stat $file
-        or Exception::IO->throw(message => 'Cannot stat');
+        or Exception::IO->throw( message => 'Cannot stat' );
 
     return $self;
 }
@@ -125,43 +133,51 @@ sub stat (;*) {
 sub lstat (;*) {
     # called as function
     if (not eval { $_[0]->isa(__PACKAGE__) }) {
-        my $st = __PACKAGE__->new(file => (defined $_[0] ? $_[0] : $_));
+        my $st = __PACKAGE__->new(
+            file => (defined $_[0] ? $_[0] : $_)
+        );
         return wantarray ? @{ $st } : $st;
     }
 
-    my ($self, $file) = @_;
+    my $self = shift;
+
+    Exception::Argument->throw(
+        message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
+    ) if @_ > 1;
+
+    my ($file) = @_;
 
     $file = $_ if not defined $file;
 
     # called as static method
     if (not ref $self) {
-        return $self->new(file => $file);
+        return $self->new( file => $file );
     }
-
-    Exception::Argument->throw(
-        message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
-    ) if @_ > 2;
 
     my %stat;
     no warnings 'io';  # lstat() on filehandle
     @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
         = CORE::lstat $file
-        or Exception::IO->throw(message => 'Cannot lstat');
+        or Exception::IO->throw( message => 'Cannot lstat' );
 
     return $self;
 }
 
 
 # Array dereference
-sub _deref_array {
+sub __deref_array {
     my $self = shift;
     return [ @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >} ];
 }
 
 
-INIT: {
+# Module initialization
+sub __init {
     __PACKAGE__->meta->make_immutable();
 }
+
+
+__init;
 
 
 1;
@@ -183,9 +199,9 @@ L<Moose::Base>
 
 =over
 
-=item IO
+=item OpenHandle
 
-Represents opened file handle.
+Represents opened file handle (glob reference or object).
 
 =item CacheFileHandle
 
@@ -224,16 +240,16 @@ Imports all available symbols.
 
 =back
 
-=head1 FIELDS
+=head1 ATTRIBUTES
 
 =over
 
-=item file (ro, weak_ref)
+=item file (ro, new, weak_ref)
 
-Contains the file for check.  The field can hold file name or file handler or
-IO object.
+Contains the file for check.  The attribute can hold file name or file handler
+or IO object.
 
-=item follow (ro)
+=item follow (ro, new)
 
 If the value is true and the I<file> for check is symlink, then follow it
 than checking the symlink itself.
@@ -299,22 +315,22 @@ Number of blocks allocated.
 =item new
 
 Creates the B<File::Stat::Moose> object and calls B<stat> method if the
-I<file> field is defined and I<follow> field is a true value or calls
-B<lstat> method if the I<file> field is defined and I<follow> field is not a
-true value.
+I<file> attribute is defined and I<follow> attribute is a true value or calls
+B<lstat> method if the I<file> attribute is defined and I<follow> attribute is
+not a true value.
 
 If the I<file> is symlink and the I<follow> is true, it will check the file
 that it refers to.  If the I<follow> is false, it will check the symlink
 itself.
 
-  $st = File::Stat::Moose->new(file=>'/etc/cdrom', follow=>1);
-  print "Device: $st->rdev\n";  # check real device, not symlink itself  
+  $st = File::Stat::Moose->new( file=>'/etc/cdrom', follow=>1 );
+  print "Device: $st->rdev\n";  # check real device, not symlink itself
 
 The object is dereferenced in array context to the array reference which
 contains the same values as core B<stat> function output.
 
-  $st = File::Stat::Moose->new(file=>'/etc/passwd');
-  print "Size: $st->size\n";  # object's field
+  $st = File::Stat::Moose->new( file=>'/etc/passwd' );
+  print "Size: $st->size\n";  # object's attribute
   print "Size: $st->[7]\n";   # array dereference
 
 =item File::Stat::Moose->stat(I<file>)
@@ -323,9 +339,9 @@ Creates the B<File::Stat::Moose> object and calls B<CORE::stat> function on
 given I<file>.  If the I<file> is undefined, the <$_> variable is used
 instead.  It returns the object reference.
 
-  $st = File::Stat::Moose->stat('/etc/passwd');
+  $st = File::Stat::Moose->stat( '/etc/passwd' );
   print "Size: ", $st->size, "\n";
-  @st = @{ File::Stat::Moose->stat('/etc/passwd') };
+  @st = @{ File::Stat::Moose->stat( '/etc/passwd' ) };
 
 =item File::Stat::Moose->lstat(I<file>)
 
@@ -333,7 +349,7 @@ Creates the B<File::Stat::Moose> object and calls B<CORE::lstat> function on
 given I<file>.  If the I<file> is undefined, the <$_> variable is used
 instead.  It returns the object reference.
 
-  @st = @{ File::Stat::Moose->lstat('/dev/stdin') };
+  @st = @{ File::Stat::Moose->lstat( '/dev/stdin' ) };
 
 =back
 
@@ -348,7 +364,7 @@ constructor.  If the I<file> is undefined, the <$_> variable is used instead.
 It returns the object reference.
 
   $st = File::Stat::Moose->new;
-  print "Size: ", $st->stat('/etc/passwd')->{size}, "\n";
+  print "Size: ", $st->stat( '/etc/passwd' )->{size}, "\n";
 
 =item $st->lstat([I<file>])
 
@@ -356,7 +372,7 @@ It is identical to B<stat>, except that if I<file> is a symbolic link, then
 the link itself is checked, not the file that it refers to.
 
   $st = File::Stat::Moose->new;
-  print "Size: ", $st->lstat('/dev/cdrom')->{mode}, "\n";
+  print "Size: ", $st->lstat( '/dev/cdrom' )->{mode}, "\n";
 
 =back
 

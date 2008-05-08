@@ -12,13 +12,15 @@ my $build = Module::Build->new(
     requires => {
         'perl'               => 5.006,
         'Moose'              => 0,
-        'Exception::Base'    => 0.14,
-        'Exception::System'  => 0.0801,
+        'Exception::Base'    => 0.16,
+        'Exception::System'  => 0.09,
     },
     optional => {
     },
     build_requires => {
         'Test::Unit::Lite'   => 0.07,
+        'Exception::Died'    => 0,
+        'Exception::Warning' => 0,
     },
     create_makefile_pl => 'traditional',
     create_readme => 1,

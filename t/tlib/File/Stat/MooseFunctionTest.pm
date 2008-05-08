@@ -6,7 +6,7 @@ use warnings;
 use base 'Test::Unit::TestCase';
 
 use File::Stat::Moose ':all';
-use Exception::Base 'try', 'catch';
+use Exception::Base;
 
 use File::Spec;
 use File::Temp 'tmpnam';
@@ -38,7 +38,7 @@ sub tear_down {
     unlink $symlink if $symlink;
 }
 
-sub test_File_Stat_function_import {
+sub test_import {
     my $self = shift;
 
     $self->assert_not_null(prototype 'File::Stat::MooseFunctionTest::stat');
@@ -51,7 +51,7 @@ sub test_File_Stat_function_import {
     $self->assert_null(prototype 'File::Stat::MooseFunctionTest::Test2::lstat');
 }
 
-sub test_File_Stat_function_Moose_stat_function {
+sub test_stat {
     my $self = shift;
 
     my $scalar = stat($file);
@@ -72,12 +72,12 @@ sub test_File_Stat_function_Moose_stat_function {
     $self->assert_equals(13, scalar @array3);
     $self->assert_deep_equals(\@array1, \@array3);
 
-    try eval { stat($notexistant); };
-    catch my $e;
-    $self->assert($e->isa('Exception::IO'));
+    eval { stat($notexistant); };
+    my $e = Exception::Base->catch;
+    $self->assert_equals('Exception::IO', ref $e);
 }
 
-sub test_File_Stat_function_Moose_lstat_function {
+sub test_lstat {
     my $self = shift;
 
     my $scalar = lstat($file);
@@ -98,12 +98,12 @@ sub test_File_Stat_function_Moose_lstat_function {
     $self->assert_equals(13, scalar @array3);
     $self->assert_deep_equals(\@array1, \@array3);
 
-    try eval { lstat($notexistant); };
-    catch my $e;
-    $self->assert($e->isa('Exception::IO'));
+    eval { lstat($notexistant); };
+    my $e = Exception::Base->catch;
+    $self->assert_equals('Exception::IO', ref $e);
 }
 
-sub test_File_Stat_function_Moose_lstat_function_symlink {
+sub test_lstat_symlink {
     return unless $symlink;
 
     my $self = shift;

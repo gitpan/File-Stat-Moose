@@ -1,4 +1,14 @@
 ------------------------------------------------------------------------
+0.02 | Piotr Roszatycki <dexter@debian.org> | 2008-05-07
+
+Changes:
+
+* Renamed constraint type IO to OpenHandle.
+* Renamed _deref_array to __deref_array.
+* Requires Exception::Base >= 0.16, Exception::System >= 0.09,
+  Exception::Died, Exception::Warning.
+
+------------------------------------------------------------------------
 0.0106 | Piotr Roszatycki <dexter@debian.org> | 2008-04-19
 
 Changes:

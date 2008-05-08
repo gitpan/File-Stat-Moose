@@ -1,5 +1,7 @@
 #!/usr/bin/perl -al
 
+use lib 'lib', '../lib';
+
 package My::CoreStat;
 our $n = 0;
 sub test {
@@ -19,7 +21,6 @@ sub test {
 
 
 package My::FileStatMoose;
-use lib 'lib', '../lib';
 use File::Stat::Moose;
 our $n = 0;
 sub test {
@@ -29,7 +30,6 @@ sub test {
 
 
 package My::FileStatMooseFunc;
-use lib 'lib', '../lib';
 use File::Stat::Moose 'stat';
 our $n = 0;
 sub test {
@@ -41,7 +41,7 @@ package main;
 
 use Benchmark ':all';
 
-my $result = timethese(-1, {
+my $result = timethese($ARGV[0] || -1, {
     '1_CoreStat'               => sub { My::CoreStat::test; },
     '2_FileStat'               => sub { My::FileStat::test; },
     '3_FileStatMoose'          => sub { My::FileStatMoose::test; },

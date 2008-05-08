@@ -5,9 +5,9 @@ SYNOPSIS
       use IO::File;
       use File::Stat::Moose;
       $fh = IO::File->new('/etc/passwd');
-      $st = File::Stat::Moose->new(file=>$fh);
-      print "Size: ", $st->size, "\n";    # named field
-      print "Blocks: ". $st->[12], "\n";  # numbered field
+      $st = File::Stat::Moose->new( file => $fh );
+      print "Size: ", $st->size, "\n";    # named attribute
+      print "Blocks: ". $st->[12], "\n";  # numbered attribute
 
 DESCRIPTION
     This class provides methods that returns status info for a file. It is
