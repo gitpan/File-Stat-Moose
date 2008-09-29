@@ -2,7 +2,7 @@
 
 package File::Stat::Moose;
 use 5.006;
-our $VERSION = 0.02;
+our $VERSION = 0.02_01;
 
 =head1 NAME
 
@@ -36,18 +36,22 @@ use Moose::Util::TypeConstraints;
 subtype 'OpenHandle'
     => as 'Ref'
     => where { defined $_
+            && defined Scalar::Util::reftype($_)
             && Scalar::Util::reftype($_) eq 'GLOB'
             && Scalar::Util::openhandle($_) }
     => optimize_as { defined $_[0]
+                  && defined Scalar::Util::reftype($_[0])
                   && Scalar::Util::reftype($_[0]) eq 'GLOB'
                   && Scalar::Util::openhandle($_[0]) };
 
 subtype 'CacheFileHandle'
     => as 'GlobRef'
     => where { defined $_
+            && defined Scalar::Util::reftype($_)
             && Scalar::Util::reftype($_) eq 'GLOB'
             && $_ == \*_ }
     => optimize_as { defined $_[0]
+                  && defined Scalar::Util::reftype($_[0])
                   && Scalar::Util::reftype($_[0]) eq 'GLOB'
                   && $_[0] == \*_ };
 
@@ -184,6 +188,57 @@ __init;
 
 
 __END__
+
+=begin umlwiki
+
+= Component Diagram =
+
+[            <<library>>       {=}
+          File::Stat::Moose
+ ---------------------------------
+ File::Stat::Moose
+ Exception::IO       <<exception>>
+ Exception::Argument <<exception>>
+ OpenHandle          <<type>
+ CacheFileHandle     <<type>>     ]
+
+[File::Stat::Moose {=}] ---> <<use>> [Exception::Base {=}] [Exporter {=}] [overload {=}]
+
+[File::Stat::Moose {=}] ---> <<use>> [Moose {=}] [Moose::Util::TypeConstraints {=}]
+
+= Class Diagram =
+
+[                            File::Stat::Moose
+ -------------------------------------------------------------------------------
+ +file : Str|FileHandle|CacheFileHandle|OpenHandle {is=ro, create, weak_ref}
+ +follow : Bool                                    {is=ro, create}
+ +dev                                              {is=ro}
+ +ino                                              {is=ro}
+ +mode                                             {is=ro}
+ +nlink                                            {is=ro}
+ +uid                                              {is=ro}
+ +gid                                              {is=ro}
+ +rdev                                             {is=ro}
+ +size                                             {is=ro}
+ +atime                                            {is=ro}
+ +mtime                                            {is=ro}
+ +ctime                                            {is=ro}
+ +blksize                                          {is=ro}
+ +blocks                                           {is=ro}
+ --------------------------------------------------------------------------------
+ +stat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ )  <<utility>>
+ +lstat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ ) <<utility>>
+ -__deref_array() : ArrayRef                                     {overload(@{})} ]
+
+[File::Stat::Moose] ---> [<<exception>> Exception::IO] ---|> [<<exception>> Exception::System]
+
+[File::Stat::Moose] ---> [<<exception>> Exception::Argument] ---|> [<<exception>> Exception::Base]
+
+[File::Stat::Moose] ---> [<<type>> OpenHandle] ---|> [<<type>> Ref]
+
+[File::Stat::Moose] ---> [<<type>> CacheFileHandle] ---|> [<<type>> GlobRef]
+
+=end umlwiki
 
 =head1 BASE CLASSES
 

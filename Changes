@@ -1,4 +1,11 @@
 ------------------------------------------------------------------------
+0.0201 | Piotr Roszatycki <dexter@debian.org> | 2008-09-29
+
+Fixes:
+
+* Constraints now work with "use warnings". Closes bug #39653.
+
+------------------------------------------------------------------------
 0.02 | Piotr Roszatycki <dexter@debian.org> | 2008-05-07
 
 Changes:
