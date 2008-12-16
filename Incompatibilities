@@ -1,0 +1,38 @@
+0.02 -> 0.03
+
+* Accessors "mtime", "atime" and "ctime" return DateTime object.
+
+  Was:
+
+  my $st = File::Stat::Moose->new(file => "/etc/passwd");
+  my $mtime = $st->mtime;
+  print $mtime;
+
+  Should be:
+
+  my $st = File::Stat::Moose->new(file => "/etc/passwd");
+  my $mtime = $st->mtime;
+  print $mtime->epoch;
+
+* File is an argument for "stat" and "lstat" static methods only.
+
+  Was:
+  
+  my $st = File::Stat::Moose->new;
+  $st->stat("/etc/passwd");
+
+  Should be:
+  
+  my $st = File::Stat::Moose->new;
+  $st->file("/etc/passwd");
+  $st->stat;
+
+  or:
+  
+  my $st = File::Stat::Moose->stat("/etc/passwd");
+
+  or:
+  
+  my $st = File::Stat::Moose->new(file => "/etc/passwd");
+
+------------------------------------------------------------------------

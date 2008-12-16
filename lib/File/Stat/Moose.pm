@@ -1,8 +1,6 @@
 #!/usr/bin/perl -c
 
 package File::Stat::Moose;
-use 5.006;
-our $VERSION = 0.02_01;
 
 =head1 NAME
 
@@ -10,9 +8,8 @@ File::Stat::Moose - Status info for a file - Moose-based
 
 =head1 SYNOPSIS
 
-  use IO::File;
   use File::Stat::Moose;
-  $fh = IO::File->new('/etc/passwd');
+  open my $fh, '/etc/passwd';
   $st = File::Stat::Moose->new( file => $fh );
   print "Size: ", $st->size, "\n";    # named attribute
   print "Blocks: ". $st->[12], "\n";  # numbered attribute
@@ -28,160 +25,169 @@ immediately after error is occurred.
 =cut
 
 
+use 5.008;
+use strict;
+use warnings;
+
+our $VERSION = 0.03;
+
 use Moose;
 
-use Moose::Util::TypeConstraints;
+use MooseX::Types::OpenHandle;
+use MooseX::Types::CacheFileHandle;
+
+use Scalar::Util 'weaken';
+use DateTime;
 
 
-subtype 'OpenHandle'
-    => as 'Ref'
-    => where { defined $_
-            && defined Scalar::Util::reftype($_)
-            && Scalar::Util::reftype($_) eq 'GLOB'
-            && Scalar::Util::openhandle($_) }
-    => optimize_as { defined $_[0]
-                  && defined Scalar::Util::reftype($_[0])
-                  && Scalar::Util::reftype($_[0]) eq 'GLOB'
-                  && Scalar::Util::openhandle($_[0]) };
-
-subtype 'CacheFileHandle'
-    => as 'GlobRef'
-    => where { defined $_
-            && defined Scalar::Util::reftype($_)
-            && Scalar::Util::reftype($_) eq 'GLOB'
-            && $_ == \*_ }
-    => optimize_as { defined $_[0]
-                  && defined Scalar::Util::reftype($_[0])
-                  && Scalar::Util::reftype($_[0]) eq 'GLOB'
-                  && $_[0] == \*_ };
-
-
-has 'file' =>
-    is       => 'ro',
+# File which is checked with stat
+has file => (
+    is       => 'rw',
     isa      => 'Str | FileHandle | CacheFileHandle | OpenHandle',
-    weak_ref => 1;
+);
 
-has 'follow' =>
+# Follow symlink or read symlink itself
+has follow => (
+    is       => 'rw',
+    isa      => 'Bool',
+);
+
+# Numeric informations about a file
+has [ qw{ dev ino mode nlink uid gid rdev size blksize blocks } ] => (
     is       => 'ro',
-    isa      => 'Bool';
+    isa      => 'Int',
+);
 
-has [ qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks > ] =>
-    is       => 'ro';
+{
+    foreach my $attr ( qw{ atime mtime ctime } ) {
+
+        # Numeric informations about a file (time as unix timestamp)
+        has "_${attr}_epoch" => (
+            isa      => 'Int',
+        );
+
+        # Time as DateTime object (lazy evaluationed)
+        has $attr => (
+            is       => 'ro',
+            isa      => 'DateTime',
+            lazy     => 1,
+            default  => sub { DateTime->from_epoch( epoch => $_[0]->{"_${attr}_epoch"} ) },
+            reader   => $attr,
+        );
+
+    };
+};
 
 
-use Exception::Base
-    '+ignore_package'     => [ __PACKAGE__, qr/^Moose::/, qr/^Class::MOP::/ ],
+use Exception::Base (
+    '+ignore_package'     => [ __PACKAGE__, 'Sub::Exporter', qr/^Moose::/, qr/^Class::MOP::/ ],
     'Exception::Argument' => { isa => 'Exception::Base' },
-    'Exception::IO'       => { isa => 'Exception::System' };
+    'Exception::IO'       => { isa => 'Exception::System' },
+);
 
 
-use overload '@{}' => '__deref_array',
-             fallback => 1;
+use overload (
+    '@{}' => '_deref_array',
+    fallback => 1
+);
 
 
-use Exporter ();
-*import = \&Exporter::import;
-our @EXPORT_OK = qw< stat lstat >;
-our %EXPORT_TAGS = (all => [ @EXPORT_OK ]);
+use Sub::Exporter -setup => {
+    exports => [
+
+        # Get file status
+        stat => sub {
+            sub (;*) {
+                my $st = __PACKAGE__->new(
+                    file => (defined $_[0] ? $_[0] : $_),
+                    follow => 1
+                );
+                return wantarray ? @{ $st } : $st;
+            };
+        },
+
+        # Get link status
+        lstat => sub {
+            sub (;*) {
+                my $st = __PACKAGE__->new(
+                    file => (defined $_[0] ? $_[0] : $_)
+                );
+                return wantarray ? @{ $st } : $st;
+            };
+        },
+
+    ],
+    groups => { all => [ qw{ stat lstat } ] },
+};
 
 
 # Constructor calls stat method if necessary
 sub BUILD {
     my ($self, $params) = @_;
 
+    # Call stat or lstat if file was provided
     if (defined $self->{file}) {
-        $self->{follow} ? $self->stat($self->{file}) : $self->lstat($self->{file});
-    }
+        $self->{follow} ? $self->stat : $self->lstat;
+    };
+    
+    return;
 };
 
 
-# Method / function
-sub stat (;*) {
-    # called as function
-    if (not eval { $_[0]->isa(__PACKAGE__) }) {
-        my $st = __PACKAGE__->new(
-            file => (defined $_[0] ? $_[0] : $_),
-            follow => 1
-        );
-        return wantarray ? @{ $st } : $st;
-    }
+# Get file status
+sub stat {
+    my ($self, $file) = @_;
 
-    my $self = shift;
-
-    Exception::Argument->throw(
-        message => 'Usage: ' . __PACKAGE__ . '->stat(FILE)'
-    ) if @_ > 1;
-
-    my ($file) = @_;
-
-    $file = $_ if not defined $file;
-
-    # called as static method
+    # Called as static method
     if (not ref $self) {
-        return $self->new(
-            file => $file,
-            follow => 1
-        );
-    }
+        Exception::Argument->throw( message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)' ) if @_ != 2;
+        return $self->new( file => $file, follow => 1 );
+    };
 
-    my %stat;
-    @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
-        = CORE::stat $file
-        or Exception::IO->throw( message => 'Cannot stat' );
+    Exception::Argument->throw( message => 'Usage: $st->stat()' ) if @_ > 1;
+
+    # Clean lazy attributes
+    delete @{$self}{ qw{ atime mtime ctime } };
+
+    @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+    = CORE::stat $self->{file} or Exception::IO->throw( message => 'Cannot stat' );
 
     return $self;
 }
 
 
-# Method / function
-sub lstat (;*) {
-    # called as function
-    if (not eval { $_[0]->isa(__PACKAGE__) }) {
-        my $st = __PACKAGE__->new(
-            file => (defined $_[0] ? $_[0] : $_)
-        );
-        return wantarray ? @{ $st } : $st;
-    }
+# Get link status
+sub lstat {
+    my ($self, $file) = @_;
 
-    my $self = shift;
-
-    Exception::Argument->throw(
-        message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)'
-    ) if @_ > 1;
-
-    my ($file) = @_;
-
-    $file = $_ if not defined $file;
-
-    # called as static method
+    # Called as static method
     if (not ref $self) {
+        Exception::Argument->throw( message => 'Usage: ' . __PACKAGE__ . '->lstat(FILE)' ) if @_ != 2;
         return $self->new( file => $file );
-    }
+    };
 
-    my %stat;
+    Exception::Argument->throw( message => 'Usage: $st->lstat()' ) if @_ > 1;
+
+    # Clean lazy attributes
+    delete @{$self}{ qw{ atime mtime ctime } };
+
     no warnings 'io';  # lstat() on filehandle
-    @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >}
-        = CORE::lstat $file
-        or Exception::IO->throw( message => 'Cannot lstat' );
+    @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+    = CORE::lstat $self->{file} or Exception::IO->throw( message => 'Cannot lstat' );
 
     return $self;
 }
 
 
 # Array dereference
-sub __deref_array {
-    my $self = shift;
-    return [ @{$self}{qw< dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks >} ];
+sub _deref_array {
+    my ($self) = @_;
+    return [ @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } } ];
 }
 
 
 # Module initialization
-sub __init {
-    __PACKAGE__->meta->make_immutable();
-}
-
-
-__init;
+__PACKAGE__->meta->make_immutable();
 
 
 1;
@@ -197,73 +203,59 @@ __END__
           File::Stat::Moose
  ---------------------------------
  File::Stat::Moose
+ MooseX::Types::OpenHandle
+ MooseX::Types::CacheFileHandle
  Exception::IO       <<exception>>
  Exception::Argument <<exception>>
  OpenHandle          <<type>
  CacheFileHandle     <<type>>     ]
 
-[File::Stat::Moose {=}] ---> <<use>> [Exception::Base {=}] [Exporter {=}] [overload {=}]
+[File::Stat::Moose {=}] ---> <<use>> [Exception::Base {=}] [Sub::Exporter {=}] [overload {=}]
 
-[File::Stat::Moose {=}] ---> <<use>> [Moose {=}] [Moose::Util::TypeConstraints {=}]
+[File::Stat::Moose {=}] ---> <<use>> [Moose {=}]
+
+[MooseX::Types::OpenHandle {=}] ---> <<use>> [Moose::Util::TypeConstraints {=}]
+
+[MooseX::Types::CacheFileHandle {=}] ---> <<use>> [Moose::Util::TypeConstraints {=}]
+
+[<<exception>> Exception::IO] ---|> [<<exception>> Exception::System]
+
+[<<exception>> Exception::Argument] ---|> [<<exception>> Exception::Base]
+
+[<<type>> OpenHandle] ---|> [<<type>> Ref]
+
+[<<type>> CacheFileHandle] ---|> [<<type>> GlobRef]
 
 = Class Diagram =
 
 [                            File::Stat::Moose
- -------------------------------------------------------------------------------
- +file : Str|FileHandle|CacheFileHandle|OpenHandle {is=ro, create, weak_ref}
- +follow : Bool                                    {is=ro, create}
- +dev                                              {is=ro}
- +ino                                              {is=ro}
- +mode                                             {is=ro}
- +nlink                                            {is=ro}
- +uid                                              {is=ro}
- +gid                                              {is=ro}
- +rdev                                             {is=ro}
- +size                                             {is=ro}
- +atime                                            {is=ro}
- +mtime                                            {is=ro}
- +ctime                                            {is=ro}
- +blksize                                          {is=ro}
- +blocks                                           {is=ro}
- --------------------------------------------------------------------------------
- +stat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ )  <<utility>>
- +lstat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ ) <<utility>>
- -__deref_array() : ArrayRef                                     {overload(@{})} ]
-
-[File::Stat::Moose] ---> [<<exception>> Exception::IO] ---|> [<<exception>> Exception::System]
-
-[File::Stat::Moose] ---> [<<exception>> Exception::Argument] ---|> [<<exception>> Exception::Base]
-
-[File::Stat::Moose] ---> [<<type>> OpenHandle] ---|> [<<type>> Ref]
-
-[File::Stat::Moose] ---> [<<type>> CacheFileHandle] ---|> [<<type>> GlobRef]
+ ---------------------------------------------------------------------------
+ +file : Str|FileHandle|CacheFileHandle|OpenHandle                     {new}
+ +follow : Bool                                                        {new}
+ +dev : Int
+ +ino : Int
+ +mode : Int
+ +nlink : Int
+ +uid : Int
+ +gid : Int
+ +rdev : Int
+ +size : Int
+ +atime : DateTime                                                    {lazy}
+ +mtime : DateTime                                                    {lazy}
+ +ctime : DateTime                                                    {lazy}
+ +blksize : Int
+ +blocks : Int
+ #_atime_epoch : Int
+ #_mtime_epoch : Int
+ #_ctime_epoch : Int
+ ---------------------------------------------------------------------------
+ +stat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ )
+ +lstat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ )
+ <<utility>> +stat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ )
+ <<utility>> +lstat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ )
+ -_deref_array() : ArrayRef                                {overload="@{}"} ]
 
 =end umlwiki
-
-=head1 BASE CLASSES
-
-=over 2
-
-=item *
-
-L<Moose::Base>
-
-=back
-
-=head1 TYPE CONSTRAINTS
-
-=over
-
-=item OpenHandle
-
-Represents opened file handle (glob reference or object).
-
-=item CacheFileHandle
-
-Represents normal file handle or special cached file handle: underscore
-(B<_>) which is used for B<stat> tests.
-
-=back
 
 =head1 EXCEPTIONS
 
@@ -287,7 +279,7 @@ By default, the class does not export its symbols.
 
 =item use File::Stat::Moose 'stat', 'lstat';
 
-Imports B<stat> and/or B<lstat> functions.
+Imports C<stat> and/or C<lstat> functions.
 
 =item use File::Stat::Moose ':all';
 
@@ -299,12 +291,12 @@ Imports all available symbols.
 
 =over
 
-=item file (ro, new, weak_ref)
+=item file (rw, new)
 
 Contains the file for check.  The attribute can hold file name or file handler
 or IO object.
 
-=item follow (ro, new)
+=item follow (rw, new)
 
 If the value is true and the I<file> for check is symlink, then follow it
 than checking the symlink itself.
@@ -343,15 +335,15 @@ Total size, in bytes.
 
 =item atime (ro)
 
-Time of last access.
+Time of last access as DateTime object.
 
 =item mtime (ro)
 
-Time of last modification.
+Time of last modification as DateTime object.
 
 =item ctime (ro)
 
-Time of last status change.
+Time of last status change as DateTime object.
 
 =item blksize (ro)
 
@@ -369,28 +361,33 @@ Number of blocks allocated.
 
 =item new
 
-Creates the B<File::Stat::Moose> object and calls B<stat> method if the
-I<file> attribute is defined and I<follow> attribute is a true value or calls
-B<lstat> method if the I<file> attribute is defined and I<follow> attribute is
-not a true value.
+Creates the C<File::Stat::Moose> object.
+
+  $st = File::Stat::Moose->new;
+  $st->file( '/etc/passwd' );
+  print "Size: ", $st->size, "\n";
+
+The C<new> constructor calls C<stat> method if the I<file> attribute is
+defined and I<follow> attribute is a true value or calls C<lstat> method if
+the I<file> attribute is defined and I<follow> attribute is not a true value.
 
 If the I<file> is symlink and the I<follow> is true, it will check the file
 that it refers to.  If the I<follow> is false, it will check the symlink
 itself.
 
   $st = File::Stat::Moose->new( file=>'/etc/cdrom', follow=>1 );
-  print "Device: $st->rdev\n";  # check real device, not symlink itself
+  print "Device: ", $st->rdev, "\n";  # check real device, not symlink
 
 The object is dereferenced in array context to the array reference which
-contains the same values as core B<stat> function output.
+contains the same values as L<perlfunc/stat> function output.
 
   $st = File::Stat::Moose->new( file=>'/etc/passwd' );
-  print "Size: $st->size\n";  # object's attribute
-  print "Size: $st->[7]\n";   # array dereference
+  print "Size: ", $st->size, "\n";  # object's attribute
+  print "Size: ", $st->[7], "\n";   # array dereference
 
 =item File::Stat::Moose->stat(I<file>)
 
-Creates the B<File::Stat::Moose> object and calls B<CORE::stat> function on
+Creates the C<File::Stat::Moose> object and calls L<perlfunc/stat> function on
 given I<file>.  If the I<file> is undefined, the <$_> variable is used
 instead.  It returns the object reference.
 
@@ -400,7 +397,7 @@ instead.  It returns the object reference.
 
 =item File::Stat::Moose->lstat(I<file>)
 
-Creates the B<File::Stat::Moose> object and calls B<CORE::lstat> function on
+Creates the C<File::Stat::Moose> object and calls L<perlfunc/lstat> function on
 given I<file>.  If the I<file> is undefined, the <$_> variable is used
 instead.  It returns the object reference.
 
@@ -412,22 +409,23 @@ instead.  It returns the object reference.
 
 =over
 
-=item $st->stat([I<file>])
+=item $st->stat
 
-Calls stat on given I<file> or the file which has beed set with B<new>
-constructor.  If the I<file> is undefined, the <$_> variable is used instead.
-It returns the object reference.
+Calls stat on the file which has beed set with C<new> constructor.  It returns
+the object reference.
 
   $st = File::Stat::Moose->new;
-  print "Size: ", $st->stat( '/etc/passwd' )->{size}, "\n";
+  $st->file( '/etc/passwd' );
+  print "Size: ", $st->stat->size, "\n";
 
-=item $st->lstat([I<file>])
+=item $st->lstat
 
-It is identical to B<stat>, except that if I<file> is a symbolic link, then
+It is identical to C<stat>, except that if I<file> is a symbolic link, then
 the link itself is checked, not the file that it refers to.
 
   $st = File::Stat::Moose->new;
-  print "Size: ", $st->lstat( '/dev/cdrom' )->{mode}, "\n";
+  $st->file( '/dev/cdrom' );
+  print "Size: ", $st->lstat->mode, "\n";
 
 =back
 
@@ -441,7 +439,7 @@ Calls stat on given I<file>.  If the I<file> is undefined, the <$_> variable
 is used instead.
 
 If it is called as function or static method in array context, it returns an
-array with the same values as for output of core B<stat> function.
+array with the same values as for output of core C<stat> function.
 
   use File::Stat::Moose 'stat';
   $_ = '/etc/passwd';
@@ -456,7 +454,7 @@ If it is called with scalar context, it returns the File::Stat::Moose object.
 
 =item lstat([I<file>])
 
-It is identical to B<stat>, except that if I<file> is a symbolic link, then
+It is identical to C<stat>, except that if I<file> is a symbolic link, then
 the link itself is checked, not the file that it refers to.
 
   use File::Stat::Moose 'lstat';
@@ -466,8 +464,8 @@ the link itself is checked, not the file that it refers to.
 
 =head1 BUGS
 
-B<stat> and B<lstat> functions does not accept special handler B<_> written
-as bareword.  You have to use it as a glob reference B<\*_>.
+C<stat> and C<lstat> functions does not accept special handler C<_> written
+as bareword.  You have to use it as a glob reference C<\*_>.
 
   use File::Stat::Moose 'stat';
   stat "/etc/passwd";  # set the special filehandle _
@@ -477,12 +475,13 @@ as bareword.  You have to use it as a glob reference B<\*_>.
 =head1 PERFORMANCE
 
 The L<File::Stat::Moose> module is 1.7 times slower than L<File::stat>
-module and 10 times slower than B<CORE::stat> function.  The function
+module and 10 times slower than L<perlfunc/stat> function.  The function
 interface is 1.5 times slower than OO interface.
 
 =head1 SEE ALSO
 
-L<Exception::Base>, L<perlfunc>, L<Moose>, L<File::stat>.
+L<Exception::Base>, L<MooseX::Types::OpenHandle>,
+L<MooseX::Types::CacheFileHandle>, L<Moose>, L<File::stat>, L<DateTime>.
 
 =for readme continue
 
@@ -490,7 +489,7 @@ L<Exception::Base>, L<perlfunc>, L<Moose>, L<File::stat>.
 
 Piotr Roszatycki E<lt>dexter@debian.orgE<gt>
 
-=head1 COPYRIGHT
+=head1 LICENSE
 
 Copyright (C) 2007, 2008 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
 

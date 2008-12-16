@@ -38,5 +38,7 @@
 \.gz$
 \.ppd$
 \.tgz$
+\.deb$
+\bDebian_CPANTS.txt$
 
 \bFile-Stat-Moose-

@@ -21,9 +21,9 @@ BEGIN {
 use Test::Unit::Lite;
 
 use Exception::Base
-    max_arg_nums => 0, max_arg_len => 200, verbosity => 3,
+    max_arg_nums => 0, max_arg_len => 200, verbosity => 4,
     '+ignore_package' => [ qr/^Test::Unit::/, 'main' ];
 use Exception::Warning '%SIG' => 'die';
-use Exception::Died    '%SIG';
+use Exception::Died    '%SIG' => 'die';
 
 all_tests;

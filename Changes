@@ -1,4 +1,16 @@
 ------------------------------------------------------------------------
+0.03 | Piotr Roszatycki <dexter@debian.org> | 2008-12-08
+
+Changes:
+
+* Accessors "mtime", "atime" and "ctime" return DateTime object.
+* File is an argument for "stat" and "lstat" static methods only.
+* Attribute "file" is not weaken anymore.
+* Constraints are moved to MooseX::Types::* packages.
+* Requires Sub::Exporter, DateTime and newer Exception::* classes.
+* Build requires Test::Assert.
+
+------------------------------------------------------------------------
 0.0201 | Piotr Roszatycki <dexter@debian.org> | 2008-09-29
 
 Fixes:

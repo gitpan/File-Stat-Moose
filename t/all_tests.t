@@ -20,6 +20,6 @@ use Exception::Base
     max_arg_nums => 0, max_arg_len => 200, verbosity => 3,
     '+ignore_package' => [ qr/^Test::Unit::/, 'main' ];
 use Exception::Warning '%SIG' => 'die';
-use Exception::Died    '%SIG';
+use Exception::Died    '%SIG' => 'die';
 
 Test::Unit::HarnessUnit->new->start('Test::Unit::Lite::AllTests');

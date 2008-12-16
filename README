@@ -2,9 +2,8 @@ NAME
     File::Stat::Moose - Status info for a file - Moose-based
 
 SYNOPSIS
-      use IO::File;
       use File::Stat::Moose;
-      $fh = IO::File->new('/etc/passwd');
+      open my $fh, '/etc/passwd';
       $st = File::Stat::Moose->new( file => $fh );
       print "Size: ", $st->size, "\n";    # named attribute
       print "Blocks: ". $st->[12], "\n";  # numbered attribute
@@ -17,7 +16,7 @@ DESCRIPTION
 AUTHOR
     Piotr Roszatycki <dexter@debian.org>
 
-COPYRIGHT
+LICENSE
     Copyright (C) 2007, 2008 by Piotr Roszatycki <dexter@debian.org>.
 
     This program is free software; you can redistribute it and/or modify it
