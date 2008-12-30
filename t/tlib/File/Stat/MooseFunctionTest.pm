@@ -3,7 +3,7 @@ package File::Stat::MooseFunctionTest;
 use strict;
 use warnings;
 
-use base 'Test::Unit::TestCase';
+use parent 'Test::Unit::TestCase';
 use Test::Assert ':all';
 
 use File::Stat::Moose ':all';
@@ -11,7 +11,7 @@ use File::Stat::Moose ':all';
 use Exception::Base;
 
 use File::Spec;
-use File::Temp ();
+use File::Temp;
 
 {
     package File::Stat::MooseFunctionTest::Test1;
@@ -43,8 +43,6 @@ sub tear_down {
 };
 
 sub test_import {
-    my $self = shift;
-
     assert_not_null(prototype 'File::Stat::MooseFunctionTest::stat');
     assert_not_null(prototype 'File::Stat::MooseFunctionTest::lstat');
 
@@ -56,10 +54,9 @@ sub test_import {
 };
 
 sub test_stat {
-    my $self = shift;
-
     my $scalar = stat($file);
-    assert_not_null($scalar);
+    assert_isa('File::Stat::Moose', $scalar);
+    assert_not_equals(0, $scalar->size);
 
     my @array1 = stat($file);
     assert_not_null(@array1);
@@ -82,10 +79,8 @@ sub test_stat {
 };
 
 sub test_lstat {
-    my $self = shift;
-
     my $scalar = lstat($file);
-    assert_not_null($scalar);
+    assert_isa('File::Stat::Moose', $scalar);
 
     my @array1 = lstat($file);
     assert_not_null(@array1);
@@ -105,15 +100,13 @@ sub test_lstat {
     assert_raises( ['Exception::IO'], sub {
         lstat($notexistant);
     } );
-}
+};
 
 sub test_lstat_symlink {
     return unless $symlink;
 
-    my $self = shift;
-
     my $scalar = lstat($symlink);
-    assert_not_null($scalar);
+    assert_isa('File::Stat::Moose', $scalar);
 
     my @array1 = lstat($symlink);
     assert_not_null(@array1);
@@ -134,6 +127,6 @@ sub test_lstat_symlink {
     assert_not_null(@array4);
     assert_equals(13, scalar @array4);
     assert_not_equals($array1[1], $array4[1]);
-}
+};
 
 1;

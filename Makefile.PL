@@ -3,21 +3,24 @@ require 5.008;
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
+          'PL_FILES' => {},
+          'INSTALLDIRS' => 'site',
           'NAME' => 'File::Stat::Moose',
+          'EXE_FILES' => [],
           'VERSION_FROM' => 'lib/File/Stat/Moose.pm',
           'PREREQ_PM' => {
                            'DateTime' => 0,
-                           'Exception::Base' => '0.2',
-                           'Exception::Died' => '0.04',
-                           'Exception::System' => '0.11',
-                           'Exception::Warning' => '0.03',
-                           'Moose' => 0,
+                           'parent' => 0,
                            'Sub::Exporter' => 0,
-                           'Test::Assert' => 0,
-                           'Test::Unit::Lite' => '0.1'
-                         },
-          'INSTALLDIRS' => 'site',
-          'EXE_FILES' => [],
-          'PL_FILES' => {}
+                           'Exception::Warning' => '0.03',
+                           'Test::Unit::Lite' => '0.11',
+                           'Exception::Argument' => '0.05',
+                           'constant::boolean' => 0,
+                           'Exception::Died' => '0.04',
+                           'Test::Assert' => '0.04',
+                           'Moose' => 0,
+                           'Exception::System' => '0.11',
+                           'Exception::Base' => '0.21'
+                         }
         )
 ;

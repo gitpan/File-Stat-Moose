@@ -1,4 +1,21 @@
 ------------------------------------------------------------------------
+0.04 | Piotr Roszatycki <dexter@debian.org> | 2008-12-30
+
+Changes:
+
+* New attribute "sloppy" for Win32.
+* Static methods "stat" and "lstat" was removed.
+* If some attributes have no meaning on platform, they contain undefined
+  value.
+* Exception::IO was moved to separate package.
+* Requires constant::boolean, Exception::Argument.
+* Build requires parent.
+
+Fixes:
+
+* Fixed incompatibility for Win32 in test units.
+
+------------------------------------------------------------------------
 0.03 | Piotr Roszatycki <dexter@debian.org> | 2008-12-08
 
 Changes:

@@ -3,15 +3,16 @@ package File::Stat::MooseTest;
 use strict;
 use warnings;
 
-use base 'Test::Unit::TestCase';
+use parent 'Test::Unit::TestCase';
 use Test::Assert ':all';
 
 use File::Stat::Moose;
 
+use constant::boolean;
 use Exception::Base;
 
 use File::Spec;
-use File::Temp ();
+use File::Temp;
 
 our ($file, $symlink, $notexistant);
 
@@ -31,213 +32,222 @@ sub tear_down {
 };
 
 sub test_new {
-    my $self = shift;
     my $obj = File::Stat::Moose->new;
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
+    assert_isa('File::Stat::Moose', $obj);
     assert_null($obj->size);
 };
 
 sub test_new_file {
-    my $self = shift;
-    my $obj = File::Stat::Moose->new(file => $file);
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
+    my $obj = File::Stat::Moose->new( file => $file );
+    assert_isa('File::Stat::Moose', $obj);
     assert_not_equals(0, $obj->size);
 };
 
 sub test_new_symlink {
     return unless $symlink;
 
-    my $self = shift;
     my $obj1 = File::Stat::Moose->new(file => $symlink);
-    assert_not_null($obj1);
-    assert_true($obj1->isa("File::Stat::Moose"), '$obj1->isa("File::Stat::Moose")');
+    assert_isa('File::Stat::Moose', $obj1);
     assert_not_equals(0, $obj1->size);
 
     my $obj2 = File::Stat::Moose->new(file => $symlink, follow => 1);
-    assert_not_null($obj2);
-    assert_true($obj2->isa("File::Stat::Moose"), '$obj2->isa("File::Stat::Moose")');
+    assert_isa('File::Stat::Moose', $obj2);
     assert_not_equals(0, $obj2->size);
 
     assert_not_equals($obj1->ino, $obj2->ino);
-}
+};
 
 sub test_new_exception_constraint {
-    my $self = shift;
     assert_raises( qr/does not pass the type constraint/, sub {
-        my $obj = File::Stat::Moose->new(file => undef);
+        my $obj = File::Stat::Moose->new( file => undef );
     } );
 
     assert_raises( qr/does not pass the type constraint/, sub {
-        my $obj = File::Stat::Moose->new(file => [1, 2, 3]);
+        my $obj = File::Stat::Moose->new( file => [1, 2, 3] );
     } );
 
     assert_raises( qr/does not pass the type constraint/, sub {
-        my $obj = File::Stat::Moose->new(file => (bless {} => 'My::Class'));
+        my $obj = File::Stat::Moose->new( file => (bless {} => 'My::Class') );
     } );
 
     assert_raises( qr/does not pass the type constraint/, sub {
-        my $obj = File::Stat::Moose->new(file => $file, follow => \1);
+        my $obj = File::Stat::Moose->new( file => $file, follow => \1 );
     } );
-}
+};
 
 sub test_new_exception_io {
-    my $self = shift;
     assert_raises( ['Exception::IO'], sub {
-        my $obj = File::Stat::Moose->new(file => $notexistant);
+        my $obj = File::Stat::Moose->new( file => $notexistant );
     } );
 };
 
 sub test__deref_array {
-    my $self = shift;
-    my $obj = File::Stat::Moose->new(file => $file);
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
+    my $obj = File::Stat::Moose->new( file => $file );
+    assert_isa('File::Stat::Moose', $obj);
     assert_equals(13, scalar @$obj);
     {
-        foreach my $value (@$obj) {
-            assert_matches(qr/^\d+$/, $value);
+        foreach my $i (0..12) {
+            assert_matches(qr/^\d+$/, $obj->[$i], $i) if defined $obj->[$i];
         };
     };
     assert_not_equals(0, $obj->[7]);
 };
 
 sub test_stat {
-    my $self = shift;
     my $obj = File::Stat::Moose->new;
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
+    assert_isa('File::Stat::Moose', $obj);
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_null($obj->$attr);
+            assert_null($obj->$attr, $attr);
         };
     };
     {
         foreach my $attr (qw { atime mtime ctime }) {
-            assert_raises( qr/is not one of the allowed types/, sub { $obj->$attr } );
+            assert_raises( qr/does not pass the type constraint/, sub {
+                $obj->$attr;
+            }, $attr );
         };
     };
 
     $obj->file($file);
     assert_equals($file, $obj->file);
-    $obj->follow(1);
-    assert_equals(1, $obj->follow);
 
-    assert_not_null($obj->stat);
+    $obj->follow(TRUE);
+    assert_true($obj->follow);
+
+    $obj->sloppy(FALSE);
+    assert_false($obj->sloppy);
+
+    $obj->stat;
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr);
+            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
         };
     };
     assert_not_equals(0, $obj->size);
+};
+
+sub test_stat_sloppy {
+    my $obj = File::Stat::Moose->new;
+    assert_isa('File::Stat::Moose', $obj);
+
+    $obj->file($file);
+    $obj->follow(TRUE);
+
+    $obj->sloppy(TRUE);
+    assert_true($obj->sloppy);
+
+    $obj->stat;
     {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_equals('DateTime', ref $obj->$attr);
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
         };
     };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    assert_not_equals(0, $obj->size);
 };
 
 sub test_stat_failure {
-    my $self = shift;
     my $obj = File::Stat::Moose->new;
-    assert_not_null($obj);
+    assert_isa('File::Stat::Moose', $obj);
 
     $obj->file($notexistant);
-    $obj->follow(1);
+    $obj->follow(TRUE);
 
-    assert_raises( ['Exception::IO'], sub { $obj->stat } );
+    assert_raises( ['Exception::IO'], sub {
+        $obj->stat;
+    } );
 
-    assert_raises( ['Exception::Argument'], sub { $obj->stat('badargument') } );
+    assert_raises( ['Exception::Argument'], sub {
+        $obj->stat('badargument')
+    } );
 };
 
 sub test_lstat {
-    my $self = shift;
     my $obj = File::Stat::Moose->new;
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
+    assert_isa('File::Stat::Moose', $obj);
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_null($obj->$attr);
+            assert_null($obj->$attr, $attr);
         };
     };
     {
         foreach my $attr (qw { atime mtime ctime }) {
-            assert_raises( qr/is not one of the allowed types/, sub { $obj->$attr } );
+            assert_raises( qr/does not pass the type constraint/, sub {
+                $obj->$attr
+            }, $attr );
         };
     };
 
     $obj->file($file);
     assert_equals($file, $obj->file);
-    $obj->follow(0);
-    assert_equals(0, $obj->follow);
 
-    assert_not_null($obj->lstat);
+    $obj->follow(FALSE);
+    assert_false($obj->follow);
+
+    $obj->sloppy(FALSE);
+    assert_false($obj->sloppy);
+
+    $obj->lstat;
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr);
+            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
         };
     };
     assert_not_equals(0, $obj->size);
     {
         foreach my $attr (qw { atime mtime ctime }) {
-            assert_equals('DateTime', ref $obj->$attr);
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
         };
     };
 };
 
-sub test_lstat_failure {
-    my $self = shift;
+sub test_lstat_sloppy {
     my $obj = File::Stat::Moose->new;
-    assert_not_null($obj);
+    assert_isa('File::Stat::Moose', $obj);
+
+    $obj->file($file);
+    $obj->follow(FALSE);
+
+    $obj->sloppy(TRUE);
+    assert_true($obj->sloppy);
+
+    $obj->lstat;
+    {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    assert_not_equals(0, $obj->size);
+};
+
+sub test_lstat_failure {
+    my $obj = File::Stat::Moose->new;
+    assert_isa('File::Stat::Moose', $obj);
 
     $obj->file($notexistant);
-    $obj->follow(0);
+    $obj->follow(FALSE);
 
-    assert_raises( ['Exception::IO'], sub { $obj->lstat } );
-
-    assert_raises( ['Exception::Argument'], sub { $obj->lstat('badargument') } );
-};
-
-sub test_stat_static_method {
-    my $self = shift;
-    my $obj = File::Stat::Moose->stat($file);
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
-    assert_not_equals(0, $obj->size);
-};
-
-sub test_stat_static_method_failure {
-    my $self = shift;
     assert_raises( ['Exception::IO'], sub {
-        File::Stat::Moose->stat($notexistant);
+        $obj->lstat;
     } );
-    assert_raises( ['Exception::Argument'], sub {
-        File::Stat::Moose->stat();
-    } );
-    assert_raises( ['Exception::Argument'], sub {
-        File::Stat::Moose->stat($file, 'badargument');
-    } );
-};
 
-sub test_lstat_static_method {
-    my $self = shift;
-    my $obj = File::Stat::Moose->lstat($file);
-    assert_not_null($obj);
-    assert_true($obj->isa("File::Stat::Moose"), '$obj->isa("File::Stat::Moose")');
-    assert_not_equals(0, $obj->size);
-}
-
-sub test_lstat_static_method_failure {
-    my $self = shift;
-    assert_raises( ['Exception::IO'], sub {
-        File::Stat::Moose->lstat($notexistant);
-    } );
     assert_raises( ['Exception::Argument'], sub {
-        File::Stat::Moose->lstat();
-    } );
-    assert_raises( ['Exception::Argument'], sub {
-        File::Stat::Moose->lstat($file, 'badargument');
+        $obj->lstat('badargument');
     } );
 };
 

@@ -1,38 +1,29 @@
-0.02 -> 0.03
+------------------------------------------------------------------------
+0.03 -> 0.04
 
-* Accessors "mtime", "atime" and "ctime" return DateTime object.
-
-  Was:
-
-  my $st = File::Stat::Moose->new(file => "/etc/passwd");
-  my $mtime = $st->mtime;
-  print $mtime;
-
-  Should be:
-
-  my $st = File::Stat::Moose->new(file => "/etc/passwd");
-  my $mtime = $st->mtime;
-  print $mtime->epoch;
-
-* File is an argument for "stat" and "lstat" static methods only.
+* Static methods "stat" and "lstat" was removed.
 
   Was:
   
-  my $st = File::Stat::Moose->new;
-  $st->stat("/etc/passwd");
-
+  my $st1 = File::Stat::Moose->stat( "/etc/passwd" );
+  my $st2 = File::Stat::Moose->lstat( "/dev/cdrom" );
+  
   Should be:
   
-  my $st = File::Stat::Moose->new;
-  $st->file("/etc/passwd");
-  $st->stat;
+  my $st1 = File::Stat::Moose->new( file => "/etc/passwd", follow => 1 );
+  my $st2 = File::Stat::Moose->new( file => "/dev/cdrom" );
 
-  or:
-  
-  my $st = File::Stat::Moose->stat("/etc/passwd");
+* If some attributes have no meaning on platform, they contain undefined
+  value.
 
-  or:
+  Was:
   
-  my $st = File::Stat::Moose->new(file => "/etc/passwd");
+  my $st = File::Stat::Moose->new( file => 'C:\Autoexec.bat' );
+  assert_str_equals( '', $st->blksize );
+  
+  Should be:
+
+  my $st = File::Stat::Moose->new( file => 'C:\Autoexec.bat' );
+  assert_null( $st->blksize );
 
 ------------------------------------------------------------------------

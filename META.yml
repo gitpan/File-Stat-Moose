@@ -1,6 +1,6 @@
 ---
 name: File-Stat-Moose
-version: 0.03
+version: 0.04
 author:
   - 'Piotr Roszatycki <dexter@debian.org>'
 abstract: 'Status info for a file - Moose-based'
@@ -9,26 +9,32 @@ resources:
   license: http://dev.perl.org/licenses/
 requires:
   DateTime: 0
-  Exception::Base: 0.2
+  Exception::Argument: 0.05
+  Exception::Base: 0.21
   Exception::System: 0.11
   Moose: 0
   Sub::Exporter: 0
+  constant::boolean: 0
   perl: 5.008
 build_requires:
   Exception::Died: 0.04
   Exception::Warning: 0.03
-  Test::Assert: 0
-  Test::Unit::Lite: 0.1
+  Test::Assert: 0.04
+  Test::Unit::Lite: 0.11
+  parent: 0
 provides:
+  Exception::IO:
+    file: lib/Exception/IO.pm
+    version: 0.04
   File::Stat::Moose:
     file: lib/File/Stat/Moose.pm
-    version: 0.03
+    version: 0.04
   MooseX::Types::CacheFileHandle:
     file: lib/MooseX/Types/CacheFileHandle.pm
-    version: 0.03
+    version: 0.04
   MooseX::Types::OpenHandle:
     file: lib/MooseX/Types/OpenHandle.pm
-    version: 0.03
+    version: 0.04
 generated_by: Module::Build version 0.280801
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html

@@ -19,6 +19,7 @@
 
 # Avoid Devel::Cover generated files
 \bcover_db
+\btmon.out$
 
 # Avoid temp and backup files.
 ~$
@@ -28,6 +29,7 @@
 \#$
 \.#
 \.rej$
+\.diff$
 
 # Avoid OS-specific files/dirs
 #   Mac OSX metadata

@@ -28,23 +28,29 @@ reference or object).
 =cut
 
 
+use 5.008;
 use strict;
 use warnings;
 
-our $VERSION = 0.03;
+our $VERSION = 0.04;
 
 use Moose::Util::TypeConstraints;
 
 
-subtype 'OpenHandle'
-    => as 'Ref'
-    => where { defined Scalar::Util::reftype($_)
-              && Scalar::Util::reftype($_) eq 'GLOB'
-              && Scalar::Util::openhandle($_) }
-    => optimize_as { defined $_[0]
-                    && defined Scalar::Util::reftype($_[0])
-                    && Scalar::Util::reftype($_[0]) eq 'GLOB'
-                    && Scalar::Util::openhandle($_[0]) };
+subtype OpenHandle => (
+    as 'Ref',
+    where {
+        defined Scalar::Util::reftype($_)
+        && Scalar::Util::reftype($_) eq 'GLOB'
+        && Scalar::Util::openhandle($_)
+    },
+    optimize_as {
+        defined $_[0]
+        && defined Scalar::Util::reftype($_[0])
+        && Scalar::Util::reftype($_[0]) eq 'GLOB'
+        && Scalar::Util::openhandle($_[0])
+    },
+);
 
 
 1;
