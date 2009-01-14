@@ -1,15 +1,31 @@
 ------------------------------------------------------------------------
+0.04 -> 0.05
+
+* Method "lstat" are deprecared.  Attribute "file" is required.  All attributes
+  are "ro".
+
+  Was:
+
+  my $st = File::Stat::Moose->new;
+  $st->file( "/etc/passwd" );
+  $st->lstat;
+
+  Should be:
+
+  my $st = File::Stat::Moose->new( file => "/etc/passwd" );
+
+------------------------------------------------------------------------
 0.03 -> 0.04
 
 * Static methods "stat" and "lstat" was removed.
 
   Was:
-  
+
   my $st1 = File::Stat::Moose->stat( "/etc/passwd" );
   my $st2 = File::Stat::Moose->lstat( "/dev/cdrom" );
-  
+
   Should be:
-  
+
   my $st1 = File::Stat::Moose->new( file => "/etc/passwd", follow => 1 );
   my $st2 = File::Stat::Moose->new( file => "/dev/cdrom" );
 
@@ -17,10 +33,10 @@
   value.
 
   Was:
-  
+
   my $st = File::Stat::Moose->new( file => 'C:\Autoexec.bat' );
   assert_str_equals( '', $st->blksize );
-  
+
   Should be:
 
   my $st = File::Stat::Moose->new( file => 'C:\Autoexec.bat' );

@@ -1,6 +1,7 @@
-#!/usr/bin/perl -I../lib
+#!/usr/bin/perl
 
 use strict;
+use lib 'lib', '../lib';
 
 use File::Stat::Moose;
 

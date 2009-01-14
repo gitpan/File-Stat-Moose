@@ -3,7 +3,9 @@ package File::Stat::MooseFunctionTest;
 use strict;
 use warnings;
 
+use Test::Unit::Lite;
 use parent 'Test::Unit::TestCase';
+
 use Test::Assert ':all';
 
 use File::Stat::Moose ':all';

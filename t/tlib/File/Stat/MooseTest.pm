@@ -3,7 +3,9 @@ package File::Stat::MooseTest;
 use strict;
 use warnings;
 
+use Test::Unit::Lite;
 use parent 'Test::Unit::TestCase';
+
 use Test::Assert ':all';
 
 use File::Stat::Moose;
@@ -31,39 +33,73 @@ sub tear_down {
     unlink $symlink if $symlink;
 };
 
-sub test_new {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
-    assert_null($obj->size);
-};
-
 sub test_new_file {
     my $obj = File::Stat::Moose->new( file => $file );
     assert_isa('File::Stat::Moose', $obj);
+    {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    assert_not_equals(0, $obj->size);
+};
+
+sub test_new_file_sloppy {
+    my $obj = File::Stat::Moose->new( file => $file, sloppy => TRUE );
+    assert_isa('File::Stat::Moose', $obj);
+    {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
     assert_not_equals(0, $obj->size);
 };
 
 sub test_new_symlink {
     return unless $symlink;
 
-    my $obj1 = File::Stat::Moose->new(file => $symlink);
+    my $obj1 = File::Stat::Moose->new( file => $symlink );
     assert_isa('File::Stat::Moose', $obj1);
+    {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^\d+$/, $obj1->$attr, $attr) if defined $obj1->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj1->$attr, $attr) if defined $obj1->$attr;
+        };
+    };
     assert_not_equals(0, $obj1->size);
 
-    my $obj2 = File::Stat::Moose->new(file => $symlink, follow => 1);
+    my $obj2 = File::Stat::Moose->new( file => $symlink, follow => 1 );
     assert_isa('File::Stat::Moose', $obj2);
     assert_not_equals(0, $obj2->size);
 
     assert_not_equals($obj1->ino, $obj2->ino);
 };
 
-sub test_new_exception_constraint {
+sub test_new_error_args {
+    assert_raises( qr/is required/, sub {
+        my $obj = File::Stat::Moose->new;
+    } );
+
     assert_raises( qr/does not pass the type constraint/, sub {
         my $obj = File::Stat::Moose->new( file => undef );
     } );
 
     assert_raises( qr/does not pass the type constraint/, sub {
-        my $obj = File::Stat::Moose->new( file => [1, 2, 3] );
+        my $obj = File::Stat::Moose->new( file => \1 );
     } );
 
     assert_raises( qr/does not pass the type constraint/, sub {
@@ -75,7 +111,7 @@ sub test_new_exception_constraint {
     } );
 };
 
-sub test_new_exception_io {
+sub test_new_error_io {
     assert_raises( ['Exception::IO'], sub {
         my $obj = File::Stat::Moose->new( file => $notexistant );
     } );
@@ -94,160 +130,29 @@ sub test__deref_array {
 };
 
 sub test_stat {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
-    {
-        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_null($obj->$attr, $attr);
-        };
-    };
-    {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_raises( qr/does not pass the type constraint/, sub {
-                $obj->$attr;
-            }, $attr );
-        };
-    };
+    my $file = File::Temp->new;
+    assert_isa('File::Temp', $file);
+    $file->autoflush(1);
+    $file->print(1);
 
-    $obj->file($file);
-    assert_equals($file, $obj->file);
+    my $obj = File::Stat::Moose->new( file => $file );
+    assert_equals(1, $obj->size);
 
-    $obj->follow(TRUE);
-    assert_true($obj->follow);
-
-    $obj->sloppy(FALSE);
-    assert_false($obj->sloppy);
+    $file->print(2);
 
     $obj->stat;
-    {
-        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    assert_not_equals(0, $obj->size);
+    assert_equals(2, $obj->size);
 };
 
-sub test_stat_sloppy {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
+sub test_stat_error_args {
+    my $obj = File::Stat::Moose->new( file => $file );
 
-    $obj->file($file);
-    $obj->follow(TRUE);
-
-    $obj->sloppy(TRUE);
-    assert_true($obj->sloppy);
-
-    $obj->stat;
-    {
-        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    assert_not_equals(0, $obj->size);
-};
-
-sub test_stat_failure {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
-
-    $obj->file($notexistant);
-    $obj->follow(TRUE);
-
-    assert_raises( ['Exception::IO'], sub {
-        $obj->stat;
+    assert_raises( ['Exception::Argument'], sub {
+        File::Stat::Moose->stat;
     } );
 
     assert_raises( ['Exception::Argument'], sub {
-        $obj->stat('badargument')
-    } );
-};
-
-sub test_lstat {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
-    {
-        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_null($obj->$attr, $attr);
-        };
-    };
-    {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_raises( qr/does not pass the type constraint/, sub {
-                $obj->$attr
-            }, $attr );
-        };
-    };
-
-    $obj->file($file);
-    assert_equals($file, $obj->file);
-
-    $obj->follow(FALSE);
-    assert_false($obj->follow);
-
-    $obj->sloppy(FALSE);
-    assert_false($obj->sloppy);
-
-    $obj->lstat;
-    {
-        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    assert_not_equals(0, $obj->size);
-    {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-};
-
-sub test_lstat_sloppy {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
-
-    $obj->file($file);
-    $obj->follow(FALSE);
-
-    $obj->sloppy(TRUE);
-    assert_true($obj->sloppy);
-
-    $obj->lstat;
-    {
-        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    {
-        foreach my $attr (qw { atime mtime ctime }) {
-            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
-        };
-    };
-    assert_not_equals(0, $obj->size);
-};
-
-sub test_lstat_failure {
-    my $obj = File::Stat::Moose->new;
-    assert_isa('File::Stat::Moose', $obj);
-
-    $obj->file($notexistant);
-    $obj->follow(FALSE);
-
-    assert_raises( ['Exception::IO'], sub {
-        $obj->lstat;
-    } );
-
-    assert_raises( ['Exception::Argument'], sub {
-        $obj->lstat('badargument');
+        $obj->stat(1);
     } );
 };
 

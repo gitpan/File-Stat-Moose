@@ -27,22 +27,28 @@ immediately after error is occurred.
 
 use 5.008;
 use strict;
-use warnings;
+use warnings FATAL => 'all';
 
-our $VERSION = 0.04;
+our $VERSION = 0.05;
 
 use Moose;
 
+# Additional types
 use MooseX::Types::OpenHandle;
 use MooseX::Types::CacheFileHandle;
 
+# Run-time Assertions
+use Test::Assert ':assert';
+
+# TRUE/FALSE
 use constant::boolean;
-use Scalar::Util 'weaken';
+
+# atime, ctime, mtime attributes
 use DateTime;
 
 
 use Exception::Base (
-    '+ignore_package'     => [ __PACKAGE__, 'Sub::Exporter', qr/^Moose::/, qr/^Class::MOP::/ ],
+    '+ignore_package' => [ __PACKAGE__, qr/^File::Spec(::|$)/, 'Sub::Exporter', qr/^Moose::/, qr/^Class::MOP::/ ],
 );
 use Exception::Argument;
 use Exception::IO;
@@ -50,7 +56,7 @@ use Exception::IO;
 
 use overload (
     '@{}' => '_deref_array',
-    fallback => 1
+    fallback => TRUE,
 );
 
 
@@ -61,8 +67,8 @@ use Sub::Exporter -setup => {
         stat => sub {
             sub (;*) {
                 my $st = __PACKAGE__->new(
-                    file => (defined $_[0] ? $_[0] : $_),
-                    follow => 1
+                    file   => (defined $_[0] ? $_[0] : $_),
+                    follow => TRUE,
                 );
                 return wantarray ? @{ $st } : $st;
             };
@@ -72,7 +78,8 @@ use Sub::Exporter -setup => {
         lstat => sub {
             sub (;*) {
                 my $st = __PACKAGE__->new(
-                    file => (defined $_[0] ? $_[0] : $_)
+                    file   => (defined $_[0] ? $_[0] : $_),
+                    follow => FALSE,
                 );
                 return wantarray ? @{ $st } : $st;
             };
@@ -85,20 +92,22 @@ use Sub::Exporter -setup => {
 
 # File which is checked with stat
 has file => (
-    is       => 'rw',
-    isa      => 'Str | FileHandle | CacheFileHandle | OpenHandle',
+    is        => 'ro',
+    isa       => 'Str | FileHandle | CacheFileHandle | OpenHandle',
+    required  => TRUE,
+    predicate => 'has_file',
 );
 
 # Follow symlink or read symlink itself
 has follow => (
-    is       => 'rw',
+    is       => 'ro',
     isa      => 'Bool',
     default  => FALSE,
 );
 
 # Speeds up stat on Win32
 has sloppy => (
-    is       => 'rw',
+    is       => 'ro',
     isa      => 'Bool',
     default  => FALSE,
 );
@@ -121,69 +130,74 @@ has [ qw{ dev ino mode nlink uid gid rdev size blksize blocks } ] => (
         has $attr => (
             is       => 'ro',
             isa      => 'Maybe[DateTime]',
-            lazy     => 1,
+            lazy     => TRUE,
             default  => sub {
-                return '' if not exists $_[0]->{"_${attr}_epoch"};
                 defined $_[0]->{"_${attr}_epoch"}
                 ? DateTime->from_epoch( epoch => $_[0]->{"_${attr}_epoch"} )
                 : undef
             },
             reader   => $attr,
+            clearer  => "_clear_$attr",
         );
 
     };
 };
 
 
+## no critic (ProhibitBuiltinHomonyms)
+## no critic (RequireArgUnpacking)
+
 # Constructor calls stat method if necessary
 sub BUILD {
     my ($self, $params) = @_;
 
-    # Call stat or lstat if file was provided
-    if (defined $self->{file}) {
-        $self->{follow} ? $self->stat : $self->lstat;
-    };
-    
+    assert_not_null($self->{file}) if ASSERT;
+
+    # Update stat info
+    $self->stat;
+
     return TRUE;
 };
 
 
-# Get file status
+# Call stat or lstat method
 sub stat {
-    my ($self, $file) = @_;
+    my $self = shift;
+    Exception::Argument->throw( message => 'Usage: $st->stat()' ) if @_ > 0 or not blessed $self;
 
-    Exception::Argument->throw( message => 'Usage: $st->stat()' ) if @_ > 1;
+    assert_not_null($self->{file}) if ASSERT;
 
-    # Clean lazy attributes
+    # Clear lazy attributes
     delete @{$self}{ qw{ atime mtime ctime } };
 
     local ${^WIN32_SLOPPY_STAT} = $self->{sloppy};
 
-    @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
-    = map { defined $_ && $_ eq '' ? undef : $_ }
-      CORE::stat $self->{file} or Exception::IO->throw( message => 'Cannot stat' );
+    if ($self->{follow}) {
+        @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+        = map { defined $_ && $_ eq '' ? undef : $_ }
+          CORE::stat $self->{file} or Exception::IO->throw( message => 'Cannot stat' );
+    }
+    else {
+        no warnings 'io';  # lstat() on filehandle
+        @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+        = map { defined $_ && $_ eq '' ? undef : $_ }
+          CORE::lstat $self->{file} or Exception::IO->throw( message => 'Cannot lstat' );
+    };
 
     return $self;
 };
 
 
-# Get link status
+# Deprecated
 sub lstat {
-    my ($self, $file) = @_;
+    my ($self) = @_;
 
-    Exception::Argument->throw( message => 'Usage: $st->lstat()' ) if @_ > 1;
+    ## no critic (RequireCarping)
+    warn "Method (File::Stat::Moose->lstat) is deprecated. Use method (stat).";
 
-    # Clean lazy attributes
-    delete @{$self}{ qw{ atime mtime ctime } };
+    confess "Cannot call method (File::Stat::Moose->lstat) with attribute (follow) set to false value" if not $self->follow;
 
-    local ${^WIN32_SLOPPY_STAT} = $self->{sloppy};
-
-    no warnings 'io';  # lstat() on filehandle
-    @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
-    = map { defined $_ && $_ eq '' ? undef : $_ }
-      CORE::lstat $self->{file} or Exception::IO->throw( message => 'Cannot lstat' );
-
-    return $self;
+    return $self->stat;
 };
 
 
@@ -213,17 +227,17 @@ __END__
  File::Stat::Moose
  MooseX::Types::OpenHandle
  MooseX::Types::CacheFileHandle
- <<exception>> Exception::IO     
- <<type>> OpenHandle          
+ <<exception>> Exception::IO
+ <<type>> OpenHandle
  <<type>> CacheFileHandle         ]
 
 = Class Diagram =
 
 [                                File::Stat::Moose
  ----------------------------------------------------------------------------------------
- +file : Str|FileHandle|CacheFileHandle|OpenHandle {rw}
- +follow : Bool {rw}                
- +sloppy : Bool {rw}                
+ +file : Str|FileHandle|CacheFileHandle|OpenHandle {ro, required}
+ +follow : Bool {ro}
+ +sloppy : Bool {ro}
  +dev : Maybe[Int] {ro}
  +ino : Maybe[Int] {ro}
  +mode : Maybe[Int] {ro}
@@ -241,8 +255,9 @@ __END__
  #_mtime_epoch : Maybe[Int] {ro}
  #_ctime_epoch : Maybe[Int] {ro}
  ----------------------------------------------------------------------------------------
+ +update() : Self
  +stat() : Self
- +lstat() : Self
+ <<deprecated>> +lstat() : Self
  <<utility>> +stat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ ) : Self|Array
  <<utility>> +lstat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ ) : Self|Array
  -_deref_array() : ArrayRef {overload="@{}"}
@@ -258,13 +273,19 @@ By default, the class does not export its symbols.
 
 =over
 
-=item use File::Stat::Moose 'stat', 'lstat';
+=item stat
+
+=item lstat
 
 Imports C<stat> and/or C<lstat> functions.
 
-=item use File::Stat::Moose ':all';
+  use File::Stat::Moose 'stat', 'lstat';
+
+=item :all
 
 Imports all available symbols.
+
+  use File::Stat::Moose ':all';
 
 =back
 
@@ -286,17 +307,17 @@ Thrown whether an IO error is occurred.
 
 =over
 
-=item file : Str|FileHandle|CacheFileHandle|OpenHandle {rw}
+=item file : Str|FileHandle|CacheFileHandle|OpenHandle {ro, required}
 
-Contains the file for check.  The attribute can hold file name or file handler
-or IO object.
+Contains the file for check.  The attribute can hold file name or file
+handler or IO object.
 
-=item follow : Bool {rw}
+=item follow : Bool {ro}
 
 If the value is true and the I<file> for check is symlink, then follows it
 than checking the symlink itself.
 
-=item sloppy : Bool {rw}
+=item sloppy : Bool {ro}
 
 On Win32 L<perlfunc/stat> needs to open the file to determine the link count
 and update attributes that may have been changed through hard links.  If the
@@ -369,8 +390,7 @@ with the same order of values as in L<perlfunc/stat> or L<perlfunc/lstat>
 functions.  Attributes C<atime>, C<ctime> and C<mtime> are returned as number
 values (Unix timestamp).
 
-  $st = File::Stat::Moose->new;
-  $st->file( '/etc/passwd' );
+  $st = File::Stat::Moose->new( file => '/etc/passwd' );
   @st = @$st;
 
 =back
@@ -381,27 +401,19 @@ values (Unix timestamp).
 
 =item new( I<args> : Hash ) : Self
 
-Creates the C<File::Stat::Moose> object.
-
-  $st = File::Stat::Moose->new;
-  $st->file( '/etc/passwd' );
-  print "Size: ", $st->size, "\n";
-
-The C<new> constructor calls C<stat> method if the I<file> attribute is
-defined and I<follow> attribute is a true value or calls C<lstat> method if
-the I<file> attribute is defined and I<follow> attribute is not a true value.
+Creates the C<File::Stat::Moose> object and calls C<update> method.
 
 If the I<file> is symlink and the I<follow> is true, it will check the file
 that it refers to.  If the I<follow> is false, it will check the symlink
 itself.
 
-  $st = File::Stat::Moose->new( file=>'/etc/cdrom', follow=>1 );
+  $st = File::Stat::Moose->new( file => '/etc/cdrom', follow => 1 );
   print "Device: ", $st->rdev, "\n";  # check real device, not symlink
 
 The object is dereferenced in array context to the array reference which
 contains the same values as L<perlfunc/stat> function output.
 
-  $st = File::Stat::Moose->new( file=>'/etc/passwd' );
+  $st = File::Stat::Moose->new( file => '/etc/passwd' );
   print "Size: ", $st->size, "\n";  # object's attribute
   print "Size: ", $st->[7], "\n";   # array dereference
 
@@ -413,21 +425,10 @@ contains the same values as L<perlfunc/stat> function output.
 
 =item stat(I<>) : Self
 
-Calls stat on the file which has been set with C<new> constructor.  It returns
-the object reference.
+Updates all attributes which represent status of file.
 
-  $st = File::Stat::Moose->new;
-  $st->file( '/etc/passwd' );
-  print "Size: ", $st->stat->size, "\n";
-
-=item lstat(I<>) : Self
-
-It is identical to C<stat>, except that if I<file> is a symbolic link, then
-the link itself is checked, not the file that it refers to.
-
-  $st = File::Stat::Moose->new;
-  $st->file( '/dev/cdrom' );
-  print "Size: ", $st->lstat->mode, "\n";
+Calls L<perlfunc/stat> function if C<follow> method is true value or
+L<perlfunc/lstat> function otherwise.
 
 =back
 
@@ -448,7 +449,8 @@ for output of core C<stat> function.
   @st = stat;
   print "Size: $st[7]\n";
 
-If it is called with scalar context, it returns the C<File::Stat::Moose> object.
+If it is called with scalar context, it returns the C<File::Stat::Moose>
+object.
 
   use File::Stat::Moose 'stat';
   $st = stat '/etc/passwd';
@@ -489,11 +491,11 @@ L<MooseX::Types::CacheFileHandle>, L<Moose>, L<File::stat>, L<DateTime>.
 
 =head1 AUTHOR
 
-Piotr Roszatycki E<lt>dexter@debian.orgE<gt>
+Piotr Roszatycki <dexter@cpan.org>
 
 =head1 LICENSE
 
-Copyright (C) 2007, 2008 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
+Copyright (C) 2007, 2008, 2009 by Piotr Roszatycki <dexter@cpan.org>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

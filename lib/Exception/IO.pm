@@ -33,7 +33,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = 0.04;
+our $VERSION = 0.05;
 
 
 use Exception::Base 0.21 (
@@ -64,7 +64,9 @@ __END__
 
 =end umlwiki
 
-=head1 BASE CLASSES
+=head1 INHERITANCE
+
+=head2 Extends
 
 =over
 
@@ -100,11 +102,11 @@ If you find the bug, please report it.
 
 =head1 AUTHOR
 
-Piotr Roszatycki E<lt>dexter@debian.orgE<gt>
+Piotr Roszatycki <dexter@cpan.org>
 
 =head1 LICENSE
 
-Copyright (C) 2008 by Piotr Roszatycki E<lt>dexter@debian.orgE<gt>.
+Copyright (C) 2008, 2009 by Piotr Roszatycki <dexter@cpan.org>.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

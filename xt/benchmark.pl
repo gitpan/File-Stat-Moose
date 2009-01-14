@@ -1,4 +1,4 @@
-#!/usr/bin/perl -al
+#!/usr/bin/perl
 
 use lib 'lib', '../lib';
 

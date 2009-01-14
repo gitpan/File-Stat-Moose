@@ -1,4 +1,20 @@
 ------------------------------------------------------------------------
+0.05 | Piotr Roszatycki <dexter@debian.org> | 2009-01-12
+
+Changes:
+
+* File::Stat::Moose:
+  * Method "stat" handles "CORE::stat" and "CORE::lstat" depends on "follow"
+    attribute.
+  * Method "lstat" are deprecared.
+  * Attribute "file" is required.
+  * All attributes are "ro".
+  * Attributes "atime", "ctime" and "mtime" returns undef if stat was not
+    called.
+* MooseX::Types::*:
+  * Fix description of modules.
+
+------------------------------------------------------------------------
 0.04 | Piotr Roszatycki <dexter@debian.org> | 2008-12-30
 
 Changes:
