@@ -1,6 +1,6 @@
 ---
 name: File-Stat-Moose
-version: 0.05
+version: 0.0501
 author:
   - 'Piotr Roszatycki <dexter@cpan.org>'
 abstract: 'Status info for a file - Moose-based'
@@ -27,17 +27,17 @@ build_requires:
 provides:
   Exception::IO:
     file: lib/Exception/IO.pm
-    version: 0.05
+    version: 0.0501
   File::Stat::Moose:
     file: lib/File/Stat/Moose.pm
-    version: 0.05
+    version: 0.0501
   MooseX::Types::CacheFileHandle:
     file: lib/MooseX/Types/CacheFileHandle.pm
-    version: 0.05
+    version: 0.0501
   MooseX::Types::OpenHandle:
     file: lib/MooseX/Types/OpenHandle.pm
-    version: 0.05
-generated_by: Module::Build version 0.31
+    version: 0.0501
+generated_by: Module::Build version 0.31012
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
   version: 1.2

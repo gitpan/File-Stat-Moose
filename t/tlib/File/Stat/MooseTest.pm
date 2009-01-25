@@ -38,7 +38,7 @@ sub test_new_file {
     assert_isa('File::Stat::Moose', $obj);
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+            assert_matches(qr/^-?\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
         };
     };
     {
@@ -54,7 +54,7 @@ sub test_new_file_sloppy {
     assert_isa('File::Stat::Moose', $obj);
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+            assert_matches(qr/^-?\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
         };
     };
     {
@@ -72,7 +72,7 @@ sub test_new_symlink {
     assert_isa('File::Stat::Moose', $obj1);
     {
         foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
-            assert_matches(qr/^\d+$/, $obj1->$attr, $attr) if defined $obj1->$attr;
+            assert_matches(qr/^-?\d+$/, $obj1->$attr, $attr) if defined $obj1->$attr;
         };
     };
     {

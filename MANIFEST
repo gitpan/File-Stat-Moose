@@ -31,3 +31,4 @@ xt/pod_syntax.t
 xt/profile.pl
 xt/trace.pl
 SIGNATURE    Added here by Module::Build
+SIGNATURE    Added here by Module::Build

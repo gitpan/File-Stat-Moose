@@ -1,4 +1,11 @@
 ------------------------------------------------------------------------
+0.0501 | Piotr Roszatycki <dexter@debian.org> | 2009-01-25
+
+Changes:
+
+* Fixed test units: on Solaris rdev can be -1.
+
+------------------------------------------------------------------------
 0.05 | Piotr Roszatycki <dexter@debian.org> | 2009-01-12
 
 Changes:
