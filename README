@@ -3,8 +3,7 @@ NAME
 
 SYNOPSIS
       use File::Stat::Moose;
-      open my $fh, '/etc/passwd';
-      $st = File::Stat::Moose->new( file => $fh );
+      $st = File::Stat::Moose->new( file => '/etc/passwd' );
       print "Size: ", $st->size, "\n";    # named attribute
       print "Blocks: ". $st->[12], "\n";  # numbered attribute
 

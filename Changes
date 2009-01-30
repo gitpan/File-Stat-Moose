@@ -1,4 +1,12 @@
 ------------------------------------------------------------------------
+0.06 | Piotr Roszatycki <dexter@debian.org> | 2009-01-29
+
+Changes:
+
+* Use accessors everywhere if attribute "strict_accessors" is true value.
+* Use "CORE::stat" instead "CORE::lstat" if file is GLOB reference.
+
+------------------------------------------------------------------------
 0.0501 | Piotr Roszatycki <dexter@debian.org> | 2009-01-25
 
 Changes:

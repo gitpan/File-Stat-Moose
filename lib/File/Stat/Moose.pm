@@ -9,8 +9,7 @@ File::Stat::Moose - Status info for a file - Moose-based
 =head1 SYNOPSIS
 
   use File::Stat::Moose;
-  open my $fh, '/etc/passwd';
-  $st = File::Stat::Moose->new( file => $fh );
+  $st = File::Stat::Moose->new( file => '/etc/passwd' );
   print "Size: ", $st->size, "\n";    # named attribute
   print "Blocks: ". $st->[12], "\n";  # numbered attribute
 
@@ -29,7 +28,7 @@ use 5.008;
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '0.0501';
+our $VERSION = '0.06';
 
 use Moose;
 
@@ -45,6 +44,8 @@ use constant::boolean;
 
 # atime, ctime, mtime attributes
 use DateTime;
+
+use Scalar::Util 'reftype';
 
 
 use Exception::Base (
@@ -91,7 +92,7 @@ use Sub::Exporter -setup => {
 
 
 # File which is checked with stat
-has file => (
+has 'file' => (
     is        => 'ro',
     isa       => 'Str | FileHandle | CacheFileHandle | OpenHandle',
     required  => TRUE,
@@ -99,45 +100,63 @@ has file => (
 );
 
 # Follow symlink or read symlink itself
-has follow => (
-    is       => 'ro',
-    isa      => 'Bool',
-    default  => FALSE,
+has 'follow' => (
+    is        => 'ro',
+    isa       => 'Bool',
+    default   => FALSE,
 );
 
 # Speeds up stat on Win32
-has sloppy => (
-    is       => 'ro',
-    isa      => 'Bool',
-    default  => FALSE,
+has 'sloppy' => (
+    is        => 'ro',
+    isa       => 'Bool',
+    default   => FALSE,
 );
 
-# Numeric informations about a file
-has [ qw{ dev ino mode nlink uid gid rdev size blksize blocks } ] => (
-    is       => 'ro',
-    isa      => 'Maybe[Int]',
+# Use accessors rather than direct hash
+has 'strict_accessors' => (
+    is        => 'rw',
+    isa       => 'Bool',
+    default   => FALSE,
 );
+
+{
+    foreach my $attr ( qw{ dev ino mode nlink uid gid rdev size blksize blocks } ) {
+
+        # Numeric informations about a file
+        has "$attr" => (
+            is       => 'ro',
+            isa      => 'Maybe[Int]',
+            writer   => "_set_$attr",
+        );
+    };
+
+};
 
 {
     foreach my $attr ( qw{ atime mtime ctime } ) {
 
+        my $reader = "_get_${attr}_epoch";
+
         # Numeric informations about a file (time as unix timestamp)
         has "_${attr}_epoch" => (
-            isa      => 'Maybe[Int]',
+            isa       => 'Maybe[Int]',
+            reader    => $reader,
+            writer    => "_set_${attr}_epoch",
         );
 
         # Time as DateTime object (lazy evaluationed)
-        has $attr => (
-            is       => 'ro',
-            isa      => 'Maybe[DateTime]',
-            lazy     => TRUE,
-            default  => sub {
-                defined $_[0]->{"_${attr}_epoch"}
-                ? DateTime->from_epoch( epoch => $_[0]->{"_${attr}_epoch"} )
+        has "$attr" => (
+            is        => 'ro',
+            isa       => 'Maybe[DateTime]',
+            lazy      => TRUE,
+            default   => sub {
+                defined $_[0]->$reader
+                ? DateTime->from_epoch( epoch => $_[0]->$reader )
                 : undef
             },
-            reader   => $attr,
-            clearer  => "_clear_$attr",
+            clearer   => "_clear_$attr",
+            predicate => "has_$attr",
         );
 
     };
@@ -147,16 +166,23 @@ has [ qw{ dev ino mode nlink uid gid rdev size blksize blocks } ] => (
 ## no critic (ProhibitBuiltinHomonyms)
 ## no critic (RequireArgUnpacking)
 
-# Constructor calls stat method if necessary
+# Object initialization
 sub BUILD {
     my ($self, $params) = @_;
 
-    assert_not_null($self->{file}) if ASSERT;
+    assert_not_null($self->file) if ASSERT;
 
-    # Update stat info
-    $self->stat;
+    $self->_init_stat;
 
-    return TRUE;
+    return $self;
+};
+
+
+# Call stat method
+sub _init_stat {
+    my ($self) = @_;
+
+    return $self->stat;    
 };
 
 
@@ -165,46 +191,93 @@ sub stat {
     my $self = shift;
     Exception::Argument->throw( message => 'Usage: $st->stat()' ) if @_ > 0 or not blessed $self;
 
-    assert_not_null($self->{file}) if ASSERT;
+    my $file = $self->file;
+    assert_not_null($file) if ASSERT;
 
     # Clear lazy attributes
-    delete @{$self}{ qw{ atime mtime ctime } };
+    if ($self->strict_accessors) {
+        foreach my $attr (qw{ atime mtime ctime }) {
+            my $clearer = "_clear_$attr";
+            $self->$clearer;
+        };
+    }
+    else {
+        delete @{$self}{ qw{ _atime_epoch _mtime_epoch _ctime_epoch } };
+    };
 
-    local ${^WIN32_SLOPPY_STAT} = $self->{sloppy};
+    local ${^WIN32_SLOPPY_STAT} = $self->sloppy;
 
-    if ($self->{follow}) {
-        @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
-        = map { defined $_ && $_ eq '' ? undef : $_ }
-          CORE::stat $self->{file} or Exception::IO->throw( message => 'Cannot stat' );
+    if ($self->follow or (ref $file || '') eq 'GLOB' or (reftype $file || '') eq 'GLOB') {
+        if ($self->strict_accessors) {
+            my %stat;
+            @stat{ qw{ dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks } }
+            = map { defined $_ && $_ eq '' ? undef : $_ }
+              CORE::stat $file or Exception::IO->throw( message => 'Cannot stat' );
+
+            foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+                my $writer = "_set_$attr";
+                $self->$writer( $stat{$attr} );
+            };
+            foreach my $attr (qw{ atime mtime ctime }) {
+                my $writer = "_set_${attr}_epoch";
+                $self->$writer( $stat{$attr} );
+            };
+        }
+        else {
+            @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+            = map { defined $_ && $_ eq '' ? undef : $_ }
+              CORE::stat $file or Exception::IO->throw( message => 'Cannot stat' );
+        };
     }
     else {
         no warnings 'io';  # lstat() on filehandle
-        @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
-        = map { defined $_ && $_ eq '' ? undef : $_ }
-          CORE::lstat $self->{file} or Exception::IO->throw( message => 'Cannot lstat' );
+
+        if ($self->strict_accessors) {
+            my %stat;
+            @stat{ qw{ dev ino mode nlink uid gid rdev size atime mtime ctime blksize blocks } }
+            = map { defined $_ && $_ eq '' ? undef : $_ }
+            CORE::lstat $file or Exception::IO->throw( message => 'Cannot stat' );
+
+            foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+                my $writer = "_set_$attr";
+                $self->$writer( $stat{$attr} );
+            };
+            foreach my $attr (qw{ atime mtime ctime }) {
+                my $writer = "_set_${attr}_epoch";
+                $self->$writer( $stat{$attr} );
+            };
+        }
+        else {
+            @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+            = map { defined $_ && $_ eq '' ? undef : $_ }
+              CORE::lstat $file or Exception::IO->throw( message => 'Cannot stat' );
+        };
     };
 
     return $self;
 };
 
 
-# Deprecated
-sub lstat {
-    my ($self) = @_;
-
-    ## no critic (RequireCarping)
-    warn "Method (File::Stat::Moose->lstat) is deprecated. Use method (stat).";
-
-    confess "Cannot call method (File::Stat::Moose->lstat) with attribute (follow) set to false value" if not $self->follow;
-
-    return $self->stat;
-};
-
-
 # Array dereference
 sub _deref_array {
     my ($self) = @_;
-    return [ @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } } ];
+
+    my @stat;
+    if ($self->strict_accessors) {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            my $reader = $attr;
+            push @stat, $self->$reader;
+        };
+        foreach my $attr (qw{ atime mtime ctime }) {
+            my $reader = "_get_${attr}_epoch";
+            push @stat, $self->$reader;
+        };
+    }
+    else {
+        @stat = @{$self}{ qw{ dev ino mode nlink uid gid rdev size _atime_epoch _mtime_epoch _ctime_epoch blksize blocks } }
+    };
+
+    return \@stat;
 };
 
 
@@ -236,8 +309,9 @@ __END__
 [                                File::Stat::Moose
  ----------------------------------------------------------------------------------------
  +file : Str|FileHandle|CacheFileHandle|OpenHandle {ro, required}
- +follow : Bool {ro}
- +sloppy : Bool {ro}
+ +follow : Bool = false {ro}
+ +sloppy : Bool = false {ro}
+ +strict_accessors : Bool = false {rw}
  +dev : Maybe[Int] {ro}
  +ino : Maybe[Int] {ro}
  +mode : Maybe[Int] {ro}
@@ -255,9 +329,7 @@ __END__
  #_mtime_epoch : Maybe[Int] {ro}
  #_ctime_epoch : Maybe[Int] {ro}
  ----------------------------------------------------------------------------------------
- +update() : Self
  +stat() : Self
- <<deprecated>> +lstat() : Self
  <<utility>> +stat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ ) : Self|Array
  <<utility>> +lstat( file : Str|FileHandle|CacheFileHandle|OpenHandle = $_ ) : Self|Array
  -_deref_array() : ArrayRef {overload="@{}"}
@@ -289,15 +361,25 @@ Imports all available symbols.
 
 =back
 
+=head1 INHERITANCE
+
+=over 2
+
+=item *
+
+extends L<Moose::Object>
+
+=back
+
 =head1 EXCEPTIONS
 
 =over
 
-=item Exception::Argument
+=item L<Exception::Argument>
 
 Thrown whether a methods is called with wrong arguments.
 
-=item Exception::IO
+=item L<Exception::IO>
 
 Thrown whether an IO error is occurred.
 
@@ -312,17 +394,22 @@ Thrown whether an IO error is occurred.
 Contains the file for check.  The attribute can hold file name or file
 handler or IO object.
 
-=item follow : Bool {ro}
+=item follow : Bool = false {ro}
 
 If the value is true and the I<file> for check is symlink, then follows it
 than checking the symlink itself.
 
-=item sloppy : Bool {ro}
+=item sloppy : Bool = false {ro}
 
 On Win32 L<perlfunc/stat> needs to open the file to determine the link count
 and update attributes that may have been changed through hard links.  If the
 I<sloppy> is set to true value, L<perlfunc/stat> speeds up by not performing
 this operation.
+
+=item strict_accessors : Bool = false {rw}
+
+By default the accessors might be avoided for performance reason.  This
+optimization can be disabled if the attribute is set to true value.
 
 =item dev : Maybe[Int] {ro}
 
@@ -478,9 +565,10 @@ as bareword.  You have to use it as a glob reference C<\*_>.
 
 =head1 PERFORMANCE
 
-The L<File::Stat::Moose> module is 1.7 times slower than L<File::stat>
-module and 10 times slower than L<perlfunc/stat> function.  The function
-interface is 1.5 times slower than OO interface.
+The L<File::Stat::Moose> module is 4 times slower than L<File::stat>
+module and 30 times slower than L<perlfunc/stat> function.  The function
+interface is 1.5 times slower than OO interface.  The strict accessors are
+2.5 times slower that optimized direct access to hash.
 
 =head1 SEE ALSO
 

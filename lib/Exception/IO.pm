@@ -33,7 +33,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.0501';
+our $VERSION = '0.06';
 
 
 use Exception::Base 0.21 (

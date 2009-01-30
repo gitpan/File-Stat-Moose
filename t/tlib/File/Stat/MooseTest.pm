@@ -49,6 +49,22 @@ sub test_new_file {
     assert_not_equals(0, $obj->size);
 };
 
+sub test_new_file_strict_accessors {
+    my $obj = File::Stat::Moose->new( file => $file, strict_accessors => 1 );
+    assert_isa('File::Stat::Moose', $obj);
+    {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^-?\d+$/, $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj->$attr, $attr) if defined $obj->$attr;
+        };
+    };
+    assert_not_equals(0, $obj->size);
+};
+
 sub test_new_file_sloppy {
     my $obj = File::Stat::Moose->new( file => $file, sloppy => TRUE );
     assert_isa('File::Stat::Moose', $obj);
@@ -89,6 +105,30 @@ sub test_new_symlink {
     assert_not_equals($obj1->ino, $obj2->ino);
 };
 
+sub test_new_symlink_strict_accessors {
+    return unless $symlink;
+
+    my $obj1 = File::Stat::Moose->new( file => $symlink, strict_accessors => 1 );
+    assert_isa('File::Stat::Moose', $obj1);
+    {
+        foreach my $attr (qw{ dev ino mode nlink uid gid rdev size blksize blocks }) {
+            assert_matches(qr/^-?\d+$/, $obj1->$attr, $attr) if defined $obj1->$attr;
+        };
+    };
+    {
+        foreach my $attr (qw { atime mtime ctime }) {
+            assert_isa('DateTime', $obj1->$attr, $attr) if defined $obj1->$attr;
+        };
+    };
+    assert_not_equals(0, $obj1->size);
+
+    my $obj2 = File::Stat::Moose->new( file => $symlink, follow => 1, strict_accessors => 1 );
+    assert_isa('File::Stat::Moose', $obj2);
+    assert_not_equals(0, $obj2->size);
+
+    assert_not_equals($obj1->ino, $obj2->ino);
+};
+
 sub test_new_error_args {
     assert_raises( qr/is required/, sub {
         my $obj = File::Stat::Moose->new;
@@ -119,6 +159,18 @@ sub test_new_error_io {
 
 sub test__deref_array {
     my $obj = File::Stat::Moose->new( file => $file );
+    assert_isa('File::Stat::Moose', $obj);
+    assert_equals(13, scalar @$obj);
+    {
+        foreach my $i (0..12) {
+            assert_matches(qr/^\d+$/, $obj->[$i], $i) if defined $obj->[$i];
+        };
+    };
+    assert_not_equals(0, $obj->[7]);
+};
+
+sub test__deref_array_strict_accessors {
+    my $obj = File::Stat::Moose->new( file => $file, strict_accessors => 1 );
     assert_isa('File::Stat::Moose', $obj);
     assert_equals(13, scalar @$obj);
     {
